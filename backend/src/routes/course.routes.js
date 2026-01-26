@@ -14,7 +14,7 @@ router.get('/:id', identify, courseController.getCourseById);
 router.post(
   '/',
   auth,
-  requireRole('course_handler'), // Only course handlers can create courses
+  requireRole('mentor'), // Only mentors can create courses
   validate(schemas.createCourse),
   courseController.createCourse
 );
@@ -23,35 +23,35 @@ router.post(
 router.put(
   '/:id',
   auth,
-  requireRole('course_handler', 'admin'),
+  requireRole('mentor', 'admin'),
   courseController.updateCourse
 );
 
 router.delete(
   '/:id',
   auth,
-  requireRole('course_handler', 'admin'),
+  requireRole('mentor', 'admin'),
   courseController.deleteCourse
 );
 
 router.put(
   '/:id/publish',
   auth,
-  requireRole('course_handler', 'admin'),
+  requireRole('mentor', 'admin'),
   courseController.togglePublish
 );
 
 router.post(
   '/:id/tutors',
   auth,
-  requireRole('course_handler', 'admin'),
+  requireRole('mentor', 'admin'),
   courseController.addTutor
 );
 
 router.delete(
   '/:id/tutors/:tutorId',
   auth,
-  requireRole('course_handler', 'admin'),
+  requireRole('mentor', 'admin'),
   courseController.removeTutor
 );
 
@@ -60,7 +60,7 @@ router.get('/:id/modules', identify, courseController.getModules);
 router.post(
   '/:id/modules',
   auth,
-  requireRole('course_handler', 'tutor', 'admin'),
+  requireRole('mentor', 'admin'),
   courseController.createModule
 );
 
@@ -69,14 +69,14 @@ router.get('/:id/modules/:moduleId', identify, courseController.getModule);
 router.post(
   '/:id/modules/:moduleId/content',
   auth,
-  requireRole('course_handler', 'tutor', 'admin'),
+  requireRole('mentor', 'admin'),
   courseController.addContent
 );
 
 router.post(
   '/:id/modules/:moduleId/assessment',
   auth,
-  requireRole('course_handler', 'tutor', 'admin'),
+  requireRole('mentor', 'admin'),
   courseController.addAssessment
 );
 
@@ -84,14 +84,14 @@ router.post(
 router.put(
   '/content/:contentId',
   auth,
-  requireRole('course_handler', 'tutor', 'admin'),
+  requireRole('mentor', 'admin'),
   courseController.updateContent
 );
 
 router.delete(
   '/content/:contentId',
   auth,
-  requireRole('course_handler', 'tutor', 'admin'),
+  requireRole('mentor', 'admin'),
   courseController.deleteContent
 );
 
@@ -99,14 +99,14 @@ router.delete(
 router.put(
   '/assessments/:assessmentId',
   auth,
-  requireRole('course_handler', 'tutor', 'admin'),
+  requireRole('mentor', 'admin'),
   courseController.updateAssessment
 );
 
 router.delete(
   '/assessments/:assessmentId',
   auth,
-  requireRole('course_handler', 'tutor', 'admin'),
+  requireRole('mentor', 'admin'),
   courseController.deleteAssessment
 );
 

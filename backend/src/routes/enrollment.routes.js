@@ -14,10 +14,22 @@ router.post(
     enrollmentController.createEnrollment
 );
 
+// Get my enrollments (alias for compatibility)
+router.get(
+    '/my-courses',
+    enrollmentController.getMyEnrollments
+);
+
 // Get my enrollments
 router.get(
     '/my',
     enrollmentController.getMyEnrollments
+);
+
+// Get specific enrollment by ID
+router.get(
+    '/:id',
+    enrollmentController.getEnrollmentById
 );
 
 // Check enrollment status

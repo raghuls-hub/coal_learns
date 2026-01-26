@@ -46,7 +46,7 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
               required
               style={styles.input}
-              placeholder="tutor@lms.com"
+              placeholder="mentor@lms.com"
             />
           </div>
 

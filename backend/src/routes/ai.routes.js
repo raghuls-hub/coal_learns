@@ -6,7 +6,7 @@ const { requireRole } = require('../middleware/rbac');
 
 router.use(auth);
 
-router.post('/embeddings/:contentId', requireRole('admin', 'course_handler'), aiController.generateEmbeddings);
+router.post('/embeddings/:contentId', requireRole('admin', 'mentor'), aiController.generateEmbeddings);
 router.post('/chat', aiController.answerQuestion);
 router.post('/help', aiController.getContextualHelp);
 

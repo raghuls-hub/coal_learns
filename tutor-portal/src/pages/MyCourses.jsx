@@ -15,8 +15,8 @@ export default function MyCourses() {
 
   const fetchCourses = async () => {
     try {
-      // Filter by current user if they are a tutor
-      const params = user?.role === 'course_handler' || user?.role === 'tutor' 
+      // Filter by current user if they are a mentor
+      const params = user?.role === 'mentor' 
         ? { courseHandler: user.userId } 
         : {};
         
@@ -55,7 +55,7 @@ export default function MyCourses() {
 
   return (
     <div style={styles.container}>
-      <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>← Back to Dashboard</button>
+
       
       <div style={styles.header}>
         <div>
@@ -111,13 +111,7 @@ export default function MyCourses() {
                 </div>
               </div>
               <div style={styles.actions}>
-                <button 
-                  style={styles.editBtn}
-                  onClick={(e) => { e.stopPropagation(); /* Edit logic */ }}
-                >
-                  Edit
-                </button>
-{/* <button
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     togglePublish(course._id, course.settings.isPublished);
@@ -125,7 +119,7 @@ export default function MyCourses() {
                   style={styles.publishBtn}
                 >
                   {course.settings.isPublished ? 'Unpublish' : 'Publish'}
-                </button> */}
+                </button>
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
@@ -145,7 +139,7 @@ export default function MyCourses() {
 }
 
 const styles = {
-  container: { padding: '2rem', maxWidth: '1400px', margin: '0 auto', minHeight: '100vh', background: '#f7fafc' },
+  container: { padding: '2rem', maxWidth: '1400px', margin: '0 auto', minHeight: '100%', background: '#f7fafc' },
   backBtn: { marginBottom: '1rem', background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   loading: { textAlign: 'center', padding: '3rem', fontSize: '18px' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', background: 'white', padding: '2rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
@@ -164,7 +158,7 @@ const styles = {
   meta: { display: 'flex', gap: '1rem', marginBottom: '1rem', fontSize: '13px', color: '#718096', flexWrap: 'wrap' },
   stats: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' },
   statItem: { textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.25rem' },
-  actions: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' },
+  actions: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' },
   editBtn: { padding: '0.5rem', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', fontWeight: '500' },
   publishBtn: { padding: '0.5rem', background: '#48bb78', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', fontWeight: '500' },
   deleteBtn: { padding: '0.5rem', background: '#f56565', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', fontWeight: '500' },

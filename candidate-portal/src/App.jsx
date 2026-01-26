@@ -1,55 +1,87 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route,Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Navigation from './components/Navigation';
+
+// Pages
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import CoursePlayer from './pages/CoursePlayer';
-import CourseSalesPage from './pages/CourseSalesPage';
-import ExamInterface from './pages/ExamInterface';
-import Certificates from './pages/Certificates';
-import Layout from './components/Layout';
-import './App.css';
+import CourseCatalog from './pages/CourseCatalog';
+import CoursePreview from './pages/CoursePreview';
+import MyLearning from './pages/MyLearning';
+import LearningInterface from './pages/LearningInterface';
+import TakeAssessment from './pages/TakeAssessment';
+import AssessmentResults from './pages/AssessmentResults';
 
+// Protected Route Component
 function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
-
+  const { isAuthenticated, loading } = useAuth();
+  
   if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
+    return <div style={{ textAlign: 'center', padding: '3rem' }}>Loading...</div>;
   }
+  
+  return isAuthenticated ? children : <Navigate to="/login" />;
+}
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (user.role !== 'candidate') {
-    return <div>Unauthorized. Please log in as a candidate.</div>;
-  }
-
-  return children;
+// Layout Component
+function Layout({ children }) {
+  return (
+    <>
+      <Navigation />
+      {children}
+    </>
+  );
 }
 
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <Router>
         <Routes>
+          {/* Public Routes */}
           <Route path="/login" element={<Login />} />
-
-          {/* Protected Routes wrapped in Layout */}
-          <Route element={
+          
+          {/* Protected Routes */}
+          <Route path="/" element={<Navigate to="/catalog" />} />
+          
+          <Route path="/catalog" element={
+            <Layout>
+              <CourseCatalog />
+            </Layout>
+          } />
+          
+          <Route path="/course/:courseId" element={
+            <Layout>
+              <CoursePreview />
+            </Layout>
+          } />
+          
+          < Route path="/my-learning" element={
             <ProtectedRoute>
-              <Layout />
+              <Layout>
+                <MyLearning />
+              </Layout>
             </ProtectedRoute>
-          }>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/course/:courseId" element={<CoursePlayer />} />
-            <Route path="/course/:courseId/details" element={<CourseSalesPage />} />
-            <Route path="/exam/:courseId/:moduleId" element={<ExamInterface />} />
-            <Route path="/certificates" element={<Certificates />} />
-          </Route>
-
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          } />
+          
+          <Route path="/learning/:enrollmentId" element={
+            <ProtectedRoute>
+              <LearningInterface />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/assessment/:assessmentId/take" element={
+            <ProtectedRoute>
+              <TakeAssessment />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/assessment/:assessmentId/results" element={
+            <ProtectedRoute>
+              <AssessmentResults />
+            </ProtectedRoute>
+          } />
         </Routes>
-      </BrowserRouter>
+      </Router>
     </AuthProvider>
   );
 }

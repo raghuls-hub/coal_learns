@@ -39,9 +39,9 @@ exports.getCourses = async (req, res, next) => {
     };
 
     // If not admin, restrict to courses created by or assigned to the user
-    // If user is a course handler, they can only see their own courses
-    // Admin, Candidate, and Tutor (if just viewing) should see all courses (subject to publication status)
-    if (req.user && req.user.role === 'course_handler') {
+    // If user is a mentor, they can only see their own courses
+    // Admin, Candidate should see all courses (subject to publication status)
+    if (req.user && req.user.role === 'mentor') {
       filters.courseHandler = req.user.userId;
     }
 
@@ -78,9 +78,9 @@ exports.getCourseById = catchAsync(async (req, res) => {
   // Determine if user has access to full content
   let hasAccess = false;
 
-  // if admin or course handler/tutor of this course
+  // if admin or mentor of this course
   if (req.user) {
-    if (['admin', 'course_handler', 'tutor'].includes(req.user.role)) {
+    if (['admin', 'mentor'].includes(req.user.role)) {
       hasAccess = true;
     } else {
       // Check enrollment for candidates

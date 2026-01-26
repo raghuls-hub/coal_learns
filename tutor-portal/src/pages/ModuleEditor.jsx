@@ -460,7 +460,7 @@ export default function ModuleEditor() {
 }
 
 const styles = {
-  container: { padding: '2rem', maxWidth: '1000px', margin: '0 auto' },
+  container: { padding: '2rem', maxWidth: '1200px', margin: '0 auto', minHeight: '100%' },
   backBtn: { marginBottom: '1rem', background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   header: { marginBottom: '2rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' },
   title: { fontSize: '24px', fontWeight: 'bold', color: '#1a202c', marginBottom: '1rem' },

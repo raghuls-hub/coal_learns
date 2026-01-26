@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import MyCourses from './pages/MyCourses';
@@ -19,10 +20,10 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (user.role !== 'course_handler' && user.role !== 'tutor') {
+  if (user.role !== 'mentor') {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}><h2>Unauthorized</h2>
-        <p>This portal is for course handlers and tutors only.</p>
+        <p>This portal is for mentors only.</p>
       </div>
     );
   }
@@ -36,47 +37,19 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/my-courses"
-            element={
-              <ProtectedRoute>
-                <MyCourses />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/create-course"
-            element={
-              <ProtectedRoute>
-                <CreateCourse />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/course/:courseId"
-            element={
-              <ProtectedRoute>
-                <CourseDetails />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/course/:courseId/module/:moduleId"
-            element={
-              <ProtectedRoute>
-                <ModuleEditor />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          <Route element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/my-courses" element={<MyCourses />} />
+            <Route path="/create-course" element={<CreateCourse />} />
+            <Route path="/course/:courseId" element={<CourseDetails />} />
+            <Route path="/course/:courseId/module/:moduleId" element={<ModuleEditor />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          </Route>
         </Routes>
       </BrowserRouter>
     </AuthProvider>

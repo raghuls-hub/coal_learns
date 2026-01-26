@@ -30,11 +30,7 @@ export default function CreateCourse() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <button onClick={() => navigate('/my-courses')} style={styles.backBtn}>
-          ← Back to Courses
-        </button>
-      </div>
+
 
       <div style={styles.formCard}>
         <h1 style={styles.title}>Create New Course</h1>
@@ -166,7 +162,7 @@ export default function CreateCourse() {
 }
 
 const styles = {
-  container: { padding: '2rem', maxWidth: '900px', margin: '0 auto', minHeight: '100vh', background: '#f7fafc' },
+  container: { padding: '2rem', maxWidth: '1000px', margin: '0 auto', minHeight: '100%' },
   header: { marginBottom: '2rem' },
   backBtn: { padding: '0.5rem 1rem', background: 'white', color: '#48bb78', border: '1px solid #48bb78', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' },
   formCard: { background: 'white', padding: '2.5rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', marginBottom: '2rem' },

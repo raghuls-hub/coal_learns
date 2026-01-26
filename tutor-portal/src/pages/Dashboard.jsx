@@ -35,19 +35,7 @@ export default function Dashboard() {
 
   return (
     <div style={styles.container}>
-      <header style={styles.header}>
-        <h1 style={styles.title}>🎓 Tutor Dashboard</h1>
-        <div style={styles.userInfo}>
-          <span>{user?.profile?.firstName} {user?.profile?.lastName}</span>
-          <button onClick={logout} style={styles.logoutBtn}>Logout</button>
-        </div>
-      </header>
-
-      <nav style={styles.nav}>
-        <button onClick={() => navigate('/dashboard')} style={styles.navBtn}>📊 Dashboard</button>
-        <button onClick={() => navigate('/my-courses')} style={styles.navBtn}>📚 My Courses</button>
-        <button onClick={() => navigate('/create-course')} style={styles.navBtnPrimary}>+ Create Course</button>
-      </nav>
+      {/* Stats Grid */}
 
       <div style={styles.grid}>
         <div style={styles.card}>
@@ -64,14 +52,14 @@ export default function Dashboard() {
           <p style={styles.label}>Across all courses</p>
         </div>
 
-        <div style={styles.card}>
+        <div style={styles.card} className="hover-shadow">
           <div style={styles.cardIcon}>💰</div>
           <h3 style={styles.cardTitle}>Total Revenue</h3>
           <p style={styles.stat}>${stats.totalRevenue.toFixed(2)}</p>
           <p style={styles.label}>Before commission</p>
         </div>
 
-        <div style={styles.card}>
+        <div style={styles.card} className="hover-shadow">
           <div style={styles.cardIcon}>⭐</div>
           <h3 style={styles.cardTitle}>Avg Rating</h3>
           <p style={styles.stat}>4.8</p>
@@ -108,15 +96,8 @@ export default function Dashboard() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: '#f7fafc', padding: '2rem' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', background: 'white', padding: '1.5rem 2rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
-  title: { fontSize: '24px', fontWeight: 'bold', color: '#1a202c' },
-  userInfo: { display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '14px' },
-  logoutBtn: { padding: '0.5rem 1rem', background: '#48bb78', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' },
-  nav: { display: 'flex', gap: '1rem', marginBottom: '2rem', background: 'white', padding: '1rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
-  navBtn: { padding: '0.75rem 1.5rem', background: '#e2e8f0', color: '#2d3748', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' },
-  navBtnPrimary: { padding: '0.75rem 1.5rem', background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px', marginLeft: 'auto' },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '2rem' },
+  container: { padding: '2rem', maxWidth: '1400px', margin: '0 auto' },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' },
   card: { background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
   cardIcon: { fontSize: '32px', marginBottom: '0.5rem' },
   cardTitle: { fontSize: '14px', color: '#718096', marginBottom: '0.5rem', fontWeight: '500' },

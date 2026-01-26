@@ -67,7 +67,7 @@ export default function CourseDetails() {
 
   return (
     <div style={styles.container}>
-      <button onClick={() => navigate('/my-courses')} style={styles.backBtn}>← Back to My Courses</button>
+
 
       <div style={styles.header}>
         <div>
@@ -126,7 +126,7 @@ export default function CourseDetails() {
 }
 
 const styles = {
-  container: { padding: '2rem', maxWidth: '1000px', margin: '0 auto' },
+  container: { padding: '2rem', maxWidth: '1000px', margin: '0 auto', minHeight: '100%' },
   backBtn: { marginBottom: '1rem', background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', background: 'white', padding: '2rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
   title: { fontSize: '24px', fontWeight: 'bold', color: '#1a202c', marginBottom: '0.5rem' },

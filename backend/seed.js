@@ -26,7 +26,7 @@ const users = [
     {
         email: 'course@lms.com',
         password: 'password123',
-        role: 'course_handler',
+        role: 'mentor',
         profile: { firstName: 'Mike', lastName: 'Handler' },
         isActive: true
     },
@@ -61,7 +61,7 @@ const seedDB = async () => {
             console.log(`👤 Created user: ${u.email} (${u.role})`);
         }
 
-        const courseHandler = createdUsers.find(u => u.role === 'course_handler');
+        const courseHandler = createdUsers.find(u => u.role === 'mentor');
         const tutor = createdUsers.find(u => u.role === 'tutor');
 
         // Create Course

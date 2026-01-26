@@ -40,31 +40,51 @@ exports.register = async (userData) => {
  * Login user
  */
 exports.login = async (email, password) => {
+  console.log('Login attempt:', email);
+  
   // Find user and include password
   const user = await User.findOne({ email }).select('+password');
   
   if (!user) {
+    console.log('User not found');
     throw new Error('Invalid email or password');
   }
 
   // Check if user is active
   if (!user.isActive) {
-    throw new Error('Account is deactivated.Contact support.');
+    console.log('User inactive');
+    throw new Error('Account is deactivated. Contact support.');
   }
 
   // Verify password
+  console.log('Verifying password...');
   const isPasswordValid = await user.comparePassword(password);
   
   if (!isPasswordValid) {
+    console.log('Password invalid');
     throw new Error('Invalid email or password');
   }
 
+  console.log('Password verified. Updating last login...');
   // Update last login
   user.lastLogin = new Date();
-  await user.save();
+  try {
+    await user.save();
+  } catch (err) {
+    console.error('Error saving user lastLogin:', err);
+    // Don't fail login just because lastLogin update failed
+  }
 
   // Generate tokens
-  const tokens = generateTokens(user);
+  console.log('Generating tokens...');
+  let tokens;
+  try {
+    tokens = generateTokens(user);
+    if (!tokens) throw new Error('Token generation returned null');
+  } catch (err) {
+    console.error('Token generation failed:', err);
+    throw new Error('Token generation failed: ' + err.message);
+  }
 
   // Return user data (exclude password)
   const userResponse = {
@@ -77,6 +97,7 @@ exports.login = async (email, password) => {
     lastLogin: user.lastLogin,
   };
 
+  console.log('Login successful');
   return { user: userResponse, ...tokens };
 };
 

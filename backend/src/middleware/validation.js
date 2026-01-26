@@ -29,7 +29,7 @@ const schemas = {
   register: Joi.object({
     email: Joi.string().email().required(),
     password: Joi.string().min(8).required(),
-    role: Joi.string().valid('admin', 'course_handler', 'tutor', 'candidate').required(),
+    role: Joi.string().valid('admin', 'mentor', 'candidate').required(),
     profile: Joi.object({
       firstName: Joi.string().required(),
       lastName: Joi.string().required(),

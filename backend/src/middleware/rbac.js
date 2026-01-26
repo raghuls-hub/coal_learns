@@ -10,7 +10,6 @@ const permissions = {
     'module:create', 'module:update', 'module:delete', 'module:view',
     'content:create', 'content:update', 'content:delete', 'content:view',
     'assessment:create', 'assessment:update', 'assessment:delete', 'assessment:view',
-    'tutor:invite', 'tutor:remove',
     'analytics:view_all',
     // Admin can manage users
     'user:create', 'user:view', 'user:update', 'user:delete',
@@ -18,21 +17,13 @@ const permissions = {
     'payment:view', 'payment:refund',
   ],
   
-  course_handler: [
-    // Course handlers can create, manage courses
+  mentor: [
+    // Mentors can create and manage their own courses
     'course:create', 'course:update', 'course:delete', 'course:view', 'course:publish',
     'module:create', 'module:update', 'module:delete', 'module:view',
     'content:create', 'content:update', 'content:delete', 'content:view',
     'assessment:create', 'assessment:update', 'assessment:delete', 'assessment:view',
-    'tutor:invite', 'tutor:remove',
     'analytics:view_own_courses',
-  ],
-  
-  tutor: [
-    'course:view',
-    'module:view',
-    'content:view',
-    'analytics:view_assigned_courses',
   ],
   
   candidate: [

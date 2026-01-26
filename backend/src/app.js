@@ -12,7 +12,8 @@ const { errorHandler, notFound } = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth.routes');
 const courseRoutes = require('./routes/course.routes');
 const enrollmentRoutes = require('./routes/enrollment.routes');
-
+const progressRoutes = require('./routes/progress.routes');
+const assessmentRoutes = require('./routes/assessment.routes');
 const userRoutes = require('./routes/user.routes');
 const aiRoutes = require('./routes/ai.routes');
 const certificateRoutes = require('./routes/certificate.routes');
@@ -48,14 +49,22 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('combined'));
 }
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-});
+// Rate limiting (disabled in development)
+// const limiter = rateLimit({
+//   windowMs: 1 * 60 * 1000, // 1 minute
+//   max: 1000, // Limit each IP to 1000 requests per windowMs (generous for dev)
+//   message: 'Too many requests from this IP, please try again later.',
+// });
 
-app.use('/api/', limiter);
+// Only enable rate limiting in production
+if (process.env.NODE_ENV === 'production') {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 500,
+    message: 'Too many requests from this IP, please try again later.',
+  });
+  app.use('/api/', limiter);
+}
 
 // Health check route
 app.get('/health', (req, res) => {
@@ -70,7 +79,8 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
-
+app.use('/api/progress', progressRoutes);
+app.use('/api/assessments', assessmentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/certificates', certificateRoutes);

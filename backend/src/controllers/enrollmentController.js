@@ -83,3 +83,32 @@ exports.checkEnrollmentStatus = catchAsync(async (req, res) => {
         enrollment: enrollment || null
     });
 });
+
+// @desc    Get enrollment by ID
+// @route   GET /api/enrollments/:id
+// @access  Private
+exports.getEnrollmentById = catchAsync(async (req, res) => {
+    const { id } = req.params;
+
+    const enrollment = await Enrollment.findOne({
+        _id: id,
+        user: req.user.userId
+    }).populate({
+        path: 'course',
+        populate: {
+            path: 'modules',
+            populate: {
+                path: 'content assessment'
+            }
+        }
+    });
+
+    if (!enrollment) {
+        return res.status(404).json({ success: false, message: 'Enrollment not found' });
+    }
+
+    res.status(200).json({
+        success: true,
+        data: enrollment
+    });
+});
