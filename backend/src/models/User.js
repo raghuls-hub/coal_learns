@@ -99,7 +99,7 @@ UserSchema.methods.getFullName = function () {
 };
 
 // Index for faster queries
-UserSchema.index({ email: 1 });
+// UserSchema.index({ email: 1 }); // Removed to avoid duplicate index warning (already defined in schema)
 UserSchema.index({ role: 1 });
 UserSchema.index({ 'metadata.createdBy': 1 });
 

@@ -7,7 +7,7 @@ export default function CourseDetails() {
   const { courseId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   const [course, setCourse] = useState(null);
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,19 +24,19 @@ export default function CourseDetails() {
         apiClient.get(`/api/courses/${courseId}`),
         apiClient.get(`/api/courses/${courseId}/modules`)
       ]);
-      
+
       setCourse(courseRes.data.data);
       // Depending on API structure, modules might be in course object or separate
       // Assuming modules are returned or populated request needed?
       // Based on typical REST: GET /api/courses/{id}/modules is best practice
       // But if backend doesn't have it, we might need to rely on populate in getCourse
       if (courseRes.data.data.modules && courseRes.data.data.modules.length > 0 && typeof courseRes.data.data.modules[0] === 'object') {
-          setModules(courseRes.data.data.modules);
+        setModules(courseRes.data.data.modules);
       } else {
-           // If modules are just IDs, or if we want to fetch separately. 
-           // Let's assume for now we might need to implement the route or use what we have.
-           // Checking backend Service... getCourseById populates modules.
-           setModules(courseRes.data.data.modules || []);
+        // If modules are just IDs, or if we want to fetch separately. 
+        // Let's assume for now we might need to implement the route or use what we have.
+        // Checking backend Service... getCourseById populates modules.
+        setModules(modulesRes.data.data || []);
       }
     } catch (error) {
       console.error('Failed to fetch details:', error);
@@ -68,7 +68,7 @@ export default function CourseDetails() {
   return (
     <div style={styles.container}>
       <button onClick={() => navigate('/my-courses')} style={styles.backBtn}>← Back to My Courses</button>
-      
+
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>{course.title}</h1>
@@ -106,8 +106,8 @@ export default function CourseDetails() {
           </div>
         ) : (
           modules.map((module, index) => (
-            <div 
-              key={module._id} 
+            <div
+              key={module._id}
               style={styles.moduleCard}
               onClick={() => navigate(`/course/${courseId}/module/${module._id}`)}
             >

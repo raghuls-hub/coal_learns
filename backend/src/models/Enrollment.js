@@ -1,38 +1,56 @@
 const mongoose = require('mongoose');
 
 const EnrollmentSchema = new mongoose.Schema({
-  candidate: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Candidate is required'],
+    required: true
   },
   course: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course',
-    required: [true, 'Course is required'],
+    required: true
   },
-  
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'completed', 'failed'],
+    default: 'pending'
+  },
+  amountPaid: {
+    type: Number,
+    required: true
+  },
+  currency: {
+    type: String,
+    default: 'USD'
+  },
+  paymentMethod: {
+    type: String,
+    default: 'mock_payment'
+  },
+  transactionId: {
+    type: String
+  },
   enrolledAt: {
     type: Date,
-    default: Date.now,
+    default: Date.now
   },
-  completedAt: Date,
-  
-  payment: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Payment',
+  completedAt: {
+    type: Date
   },
-  
-  status: {
-    type: String,
-    enum: ['active', 'completed', 'suspended', 'cancelled'],
-    default: 'active',
+  progress: {
+    type: Number, // 0 to 100
+    default: 0
   },
+  lastAccessed: {
+    type: Date,
+    default: Date.now
+  }
 }, {
-  timestamps: true,
+  timestamps: true
 });
 
-// Unique enrollment per candidate per course
-EnrollmentSchema.index({ candidate: 1, course: 1 }, { unique: true });
+// Prevent double enrollment
+EnrollmentSchema.index({ user: 1, course: 1 }, { unique: true });
 
 module.exports = mongoose.model('Enrollment', EnrollmentSchema);

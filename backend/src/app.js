@@ -11,7 +11,11 @@ const { errorHandler, notFound } = require('./middleware/errorHandler');
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const courseRoutes = require('./routes/course.routes');
+const enrollmentRoutes = require('./routes/enrollment.routes');
+
 const userRoutes = require('./routes/user.routes');
+const aiRoutes = require('./routes/ai.routes');
+const certificateRoutes = require('./routes/certificate.routes');
 
 const app = express();
 
@@ -65,7 +69,11 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/enrollments', enrollmentRoutes);
+
 app.use('/api/users', userRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/certificates', certificateRoutes);
 // Additional routes will be added as we build them
 
 // 404 handler

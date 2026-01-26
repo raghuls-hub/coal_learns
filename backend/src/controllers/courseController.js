@@ -1,4 +1,8 @@
 const courseService = require('../services/courseService');
+const Course = require('../models/Course');
+const Module = require('../models/Module');
+const Enrollment = require('../models/Enrollment');
+const catchAsync = require('../utils/catchAsync');
 
 /**
  * @route   POST /api/courses
@@ -35,8 +39,17 @@ exports.getCourses = async (req, res, next) => {
     };
 
     // If not admin, restrict to courses created by or assigned to the user
-    if (req.user.role !== 'admin') {
+    // If user is a course handler, they can only see their own courses
+    // Admin, Candidate, and Tutor (if just viewing) should see all courses (subject to publication status)
+    if (req.user && req.user.role === 'course_handler') {
       filters.courseHandler = req.user.userId;
+    }
+
+    // For public or candidates, show only published courses (optional, depends on requirements but good practice)
+    // If you want candidates to see everything, remove this block. 
+    // Usually, public/candidates see published courses.
+    if (!req.user || req.user.role === 'candidate') {
+      filters.isPublished = true;
     }
 
     const result = await courseService.getCourses(filters, parseInt(page), parseInt(limit));
@@ -50,23 +63,44 @@ exports.getCourses = async (req, res, next) => {
   }
 };
 
-/**
- * @route   GET /api/courses/:id
- * @desc    Get course by ID
- * @access  Public
- */
-exports.getCourseById = async (req, res, next) => {
-  try {
-    const course = await courseService.getCourseById(req.params.id);
+// @desc    Get single course
+// @route   GET /api/courses/:id
+// @access  Public
+exports.getCourseById = catchAsync(async (req, res) => {
+  const course = await Course.findById(req.params.id)
+    .populate('courseHandler', 'profile.firstName profile.lastName email')
+    .populate('tutors', 'profile.firstName profile.lastName');
 
-    res.status(200).json({
-      success: true,
-      data: course,
-    });
-  } catch (error) {
-    next(error);
+  if (!course) {
+    return res.status(404).json({ success: false, message: 'Course not found' });
   }
-};
+
+  // Determine if user has access to full content
+  let hasAccess = false;
+
+  // if admin or course handler/tutor of this course
+  if (req.user) {
+    if (['admin', 'course_handler', 'tutor'].includes(req.user.role)) {
+      hasAccess = true;
+    } else {
+      // Check enrollment for candidates
+      const enrollment = await Enrollment.findOne({
+        user: req.user.userId,
+        course: course._id,
+        paymentStatus: 'completed'
+      });
+      if (enrollment) hasAccess = true;
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      ...course.toObject(),
+      hasAccess // Frontend can use this to show "Buy Now" or "Go to Course"
+    }
+  });
+});
 
 /**
  * @route   PUT /api/courses/:id
