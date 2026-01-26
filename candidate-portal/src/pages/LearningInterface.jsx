@@ -12,6 +12,7 @@ export default function LearningInterface() {
   const [currentModule, setCurrentModule] = useState(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState({});
+  const [finalExam, setFinalExam] = useState(null);
 
   useEffect(() => {
     fetchEnrollment();
@@ -25,15 +26,28 @@ export default function LearningInterface() {
       const course = res.data.data.course;
       if (course.modules && course.modules.length > 0) {
         setModules(course.modules);
-        console.log('Modules loaded:', course.modules.map(m => ({ title: m.title, hasAssessment: !!m.assessment })));
-        // Set first content of first module as default
-        if (course.modules[0].content && course.modules[0].content.length > 0) {
-          setCurrentModule(course.modules[0]);
-          setCurrentContent(course.modules[0].content[0]);
+        
+        // Initial load
+        // Only set default if nothing selected yet
+        if (!currentModule && course.modules[0].content && course.modules[0].content.length > 0) {
+           setCurrentModule(course.modules[0]);
+           setCurrentContent(course.modules[0].content[0]);
         }
       }
+
+      // Check progress for unlocks
+      const progressRes = await apiClient.get(`/progress/${enrollmentId}`);
+      setProgress(progressRes.data.data || {});
+
+      // Fetch Final Exam info
+      const examRes = await apiClient.get(`/courses/${course._id}/final-assessment`);
+      if (examRes.data.data) {
+        console.log('Final Exam found:', examRes.data.data);
+        setFinalExam(examRes.data.data);
+      }
+
     } catch (error) {
-      console.error('Failed to fetch enrollment:', error);
+      console.error('Failed to fetch data:', error);
     } finally {
       setLoading(false);
     }
@@ -102,6 +116,37 @@ export default function LearningInterface() {
             </div>
           ))}
         </div>
+
+        {finalExam && (
+           <div style={{padding: '1.5rem', borderTop: '1px solid #f1f5f9'}}>
+              <h4 style={{fontSize: '13px', fontWeight: '700', color: '#94a3b8', marginBottom: '0.75rem', textTransform: 'uppercase'}}>Final Assessement</h4>
+              <div 
+                 onClick={() => {
+                   if (progress.finalExamUnlocked) {
+                     navigate(`/assessment/${finalExam._id}/take`);
+                   } else {
+                     alert('Complete all modules to unlock the Final Exam!');
+                   }
+                 }}
+                 style={{
+                   padding: '1rem',
+                   background: progress.finalExamUnlocked ? '#4f46e5' : '#e2e8f0',
+                   color: progress.finalExamUnlocked ? 'white' : '#94a3b8',
+                   borderRadius: '8px',
+                   fontWeight: '600',
+                   cursor: progress.finalExamUnlocked ? 'pointer' : 'not-allowed',
+                   display: 'flex',
+                   alignItems: 'center',
+                   gap: '0.5rem',
+                   transition: 'all 0.2s',
+                   boxShadow: progress.finalExamUnlocked ? '0 4px 6px -1px rgba(79, 70, 229, 0.3)' : 'none'
+                 }}
+              >
+                <span>{progress.finalExamUnlocked ? '🔓' : '🔒'}</span>
+                Take Final Exam
+              </div>
+           </div>
+        )}
       </div>
 
       <div style={styles.main}>

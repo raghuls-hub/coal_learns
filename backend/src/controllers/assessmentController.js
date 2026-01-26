@@ -37,6 +37,40 @@ exports.submitAssessment = catchAsync(async (req, res) => {
 
   const results = await assessmentService.submitAnswers(id, candidateId, answers);
 
+  // Check if this was a final exam and passed
+  console.log('Submission Results:', { passed: results.passed });
+  
+  if (results.passed) {
+    const assessment = await assessmentService.getAssessmentById(id);
+    console.log('Assessment Type:', assessment.type);
+    
+    if (assessment.type === 'final_exam') {
+      // Find the enrollment
+      const Enrollment = require('../models/Enrollment');
+      const enrollment = await Enrollment.findOne({ 
+        course: assessment.course, 
+        user: candidateId 
+      });
+
+      console.log('Enrollment found:', !!enrollment);
+
+      if (enrollment) {
+        // Generate Certificate
+        try {
+            const certificateService = require('../services/certificateService');
+            const certificate = await certificateService.generateCertificate(enrollment._id);
+            console.log('Certificate generated:', certificate.certificateId);
+            
+            // Add certificate ID to results
+            results.certificateId = certificate.certificateId;
+            results.isFinalExam = true;
+        } catch (err) {
+            console.error('Certificate Generation Failed:', err);
+        }
+      }
+    }
+  }
+
   res.status(200).json({
     success: true,
     data: results

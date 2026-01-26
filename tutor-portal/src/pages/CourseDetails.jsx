@@ -121,12 +121,29 @@ export default function CourseDetails() {
           ))
         )}
       </div>
+
+      <div style={{marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid #e2e8f0'}}>
+        <h2 style={{fontSize: '20px', fontWeight: '700', color: '#1a202c', marginBottom: '1rem'}}>Final Assessment</h2>
+        <div 
+          style={{...styles.moduleCard, borderLeft: '4px solid #f59e0b', background: '#fffbeb'}}
+          onClick={() => navigate(`/course/${courseId}/final-exam`)}
+        >
+          <div style={styles.moduleInfo}>
+             <span style={{...styles.moduleOrder, color: '#d97706'}}>MANDATORY</span>
+             <h3 style={styles.moduleTitle}>Final Course Exam</h3>
+             <span style={styles.itemCount}>Required for Certificate</span>
+          </div>
+          <button style={{padding: '0.5rem 1rem', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600'}}>
+             Manage Exam
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
 const styles = {
-  container: { padding: '2rem', maxWidth: '1000px', margin: '0 auto', minHeight: '100%' },
+  container: { padding: '2rem', maxWidth: '1000px', margin: '0 auto', minHeight: '100%', fontFamily: "'Inter', sans-serif" },
   backBtn: { marginBottom: '1rem', background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', background: 'white', padding: '2rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
   title: { fontSize: '24px', fontWeight: 'bold', color: '#1a202c', marginBottom: '0.5rem' },

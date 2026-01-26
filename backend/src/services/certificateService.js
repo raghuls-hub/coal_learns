@@ -1,224 +1,142 @@
-const { ethers } = require('ethers');
-const crypto = require('crypto');
-const QRCode = require('qrcode');
 const Certificate = require('../models/Certificate');
-const ExamAttempt = require('../models/ExamAttempt');
-
-// Certificate contract ABI (simplified - deploy actual contract separately)
-const certificateContractABI = [
-  "function storeCertificate(string memory certificateId, bytes32 certificateHash) public returns (uint256)",
-  "function verifyCertificate(string memory certificateId) public view returns (bytes32, uint256, address, bool)"
-];
+const Enrollment = require('../models/Enrollment');
+const Course = require('../models/Course');
+const User = require('../models/User');
+const QRCode = require('qrcode');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
 
 /**
- * Generate and issue certificate after exam pass
+ * Generate a new certificate
  */
-exports.generateCertificate = async (examAttemptId) => {
-  const examAttempt = await ExamAttempt.findById(examAttemptId)
-    .populate('candidate')
+exports.generateCertificate = async (enrollmentId) => {
+  // Fetch details
+  const enrollment = await Enrollment.findById(enrollmentId)
+    .populate('user')
+    .populate('course')
     .populate({
-      path: 'exam',
-      populate: { path: 'course assessment' },
+      path: 'course',
+      populate: { path: 'courseHandler', select: 'profile' }
     });
 
-  if (!examAttempt) {
-    throw new Error('Exam attempt not found');
-  }
+  if (!enrollment) throw new Error('Enrollment not found');
 
-  const course = examAttempt.exam.course;
+  // Check if already exists
+  const existingCert = await Certificate.findOne({ enrollment: enrollmentId });
+  if (existingCert) return existingCert;
 
-  // Check if exam was passed
-  if (examAttempt.score.percentage < course.settings.passingPercentage) {
-    throw new Error('Exam not passed. Certificate cannot be issued.');
-  }
-
-  // Check if certificate already exists
-  const existingCert = await Certificate.findOne({ examAttempt: examAttemptId });
-  if (existingCert) {
-    return existingCert;
-  }
-
-  // Generate unique certificate ID
-  const certificateId = `CERT-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
-
-  // Create certificate metadata
-  const metadata = {
-    candidateName: `${examAttempt.candidate.profile.firstName} ${examAttempt.candidate.profile.lastName}`,
-    courseTitle: course.title,
-    score: examAttempt.score.percentage,
-    completionDate: examAttempt.submittedAt,
-    issuer: 'LMS Platform', // Configure this
-  };
-
-  // Generate hash for blockchain
-  const certificateHash = crypto
-    .createHash('sha256')
-    .update(JSON.stringify({ certificateId, ...metadata }))
-    .digest('hex');
-
-  // Store on blockchain
-  let blockchainData = null;
-  if (process.env.BLOCKCHAIN_PRIVATE_KEY && process.env.POLYGON_RPC_URL) {
-    try {
-      blockchainData = await this.storeOnBlockchain(certificateId, certificateHash);
-    } catch (error) {
-      console.warn('Blockchain storage failed, continuing with database only:', error.message);
-    }
-  }
-
-  // Generate QR code for verification
-  const verificationUrl = `${process.env.APP_URL}/verify/${certificateId}`;
-  const qrCode = await QRCode.toDataURL(verificationUrl);
-
-  // Create certificate record
-  const certificate = new Certificate({
-    certificateId,
-    candidate: examAttempt.candidate._id,
-    course: course._id,
-    examAttempt: examAttemptId,
-    issuedAt: new Date(),
-    blockchain: blockchainData ? {
-      network: 'polygon',
-      transactionHash: blockchainData.transactionHash,
-      certificateHash: '0x' + certificateHash,
-      blockNumber: blockchainData.blockNumber,
-      verificationUrl,
-    } : undefined,
-    metadata,
-    qrCode,
-    status: 'active',
+  // Generate Verification URL
+  // Ideally this points to the frontend verification route
+  // e.g. https://lms-app.com/verify/:id
+  // For dev: http://localhost:5173/verify/:id
+  const baseUrl = process.env.APP_URL || 'http://localhost:5173';
+  
+  // Temporary ID for URL generation (will update after save if uuid used, but schema uses uuid by default)
+  // We can rely on a generated UUID or let mongoose default do it.
+  // Mongoose default in schema is uuidv4.
+  
+  // We need the ID for the QR code.
+  // Let's create the object first.
+  const cert = new Certificate({
+    user: enrollment.user._id,
+    course: enrollment.course._id,
+    enrollment: enrollment._id,
+    instructorName: `${enrollment.course.courseHandler.profile.firstName} ${enrollment.course.courseHandler.profile.lastName}`,
+    courseName: enrollment.course.title,
+    score: enrollment.progress || 100, // Fallback if progress not tracked exactly
+    // verificationUrl and qrCodeData will be set below
   });
 
-  await certificate.save();
+  const verificationUrl = `${baseUrl}/verify/${cert.certificateId}`;
+  cert.verificationUrl = verificationUrl;
 
-  return certificate;
+  // Generate QR Code
+  const qrCodeData = await QRCode.toDataURL(verificationUrl);
+  cert.qrCodeData = qrCodeData;
+
+  await cert.save();
+  return cert;
 };
 
 /**
- * Store certificate hash on blockchain
+ * Generate PDF Stream for a certificate
  */
-exports.storeOnBlockchain = async (certificateId, certificateHash) => {
-  try {
-    // Connect to Polygon network
-    const provider = new ethers.JsonRpcProvider(process.env.POLYGON_RPC_URL);
-    const wallet = new ethers.Wallet(process.env.BLOCKCHAIN_PRIVATE_KEY, provider);
+exports.generatePDF = async (certificateId, res) => {
+  const cert = await Certificate.findOne({ certificateId });
+  if (!cert) throw new Error('Certificate not found');
 
-    // Contract instance
-    const contract = new ethers.Contract(
-      process.env.CERTIFICATE_CONTRACT_ADDRESS,
-      certificateContractABI,
-      wallet
-    );
+  const doc = new PDFDocument({
+    layout: 'landscape',
+    size: 'A4',
+    margin: 0
+  });
 
-    // Convert hash to bytes32
-    const hashBytes32 = '0x' + certificateHash;
+  // Pipe to response
+  doc.pipe(res);
 
-    // Submit transaction
-    const tx = await contract.storeCertificate(certificateId, hashBytes32);
+  // -- Design --
+  
+  // Background / Border
+  doc.rect(20, 20, doc.page.width - 40, doc.page.height - 40)
+     .stroke('#1a202c');
+  
+  doc.rect(40, 40, doc.page.width - 80, doc.page.height - 80)
+     .stroke('#4a5568');
 
-    // Wait for confirmation
-    const receipt = await tx.wait();
+  // Header
+  doc.font('Helvetica-Bold').fontSize(40).fillColor('#2d3748')
+     .text('CERTIFICATE OF COMPLETION', 0, 100, { align: 'center' });
 
-    return {
-      transactionHash: receipt.hash,
-      blockNumber: receipt.blockNumber,
-      gasUsed: receipt.gasUsed.toString(),
-    };
-  } catch (error) {
-    throw new Error(`Blockchain storage failed: ${error.message}`);
+  doc.font('Helvetica').fontSize(20).fillColor('#718096')
+     .text('This is to certify that', 0, 160, { align: 'center' });
+
+  // Candidate Name
+  // We need to fetch user name or store it in cert.
+  // Currently cert model has user ID. Need to populate or better, store snapshot in model.
+  // The plan said "Candidate Name". I'll populate for now.
+  const populatedCert = await Certificate.findById(cert._id).populate('user');
+  const candidateName = `${populatedCert.user.profile.firstName} ${populatedCert.user.profile.lastName}`;
+
+  doc.font('Helvetica-Bold').fontSize(35).fillColor('#1a202c')
+     .text(candidateName, 0, 200, { align: 'center' });
+
+  doc.font('Helvetica').fontSize(20).fillColor('#718096')
+     .text('has successfully completed the course', 0, 260, { align: 'center' });
+
+  // Course Name
+  doc.font('Helvetica-Bold').fontSize(30).fillColor('#667eea')
+     .text(cert.courseName, 0, 300, { align: 'center' });
+
+  // Success message / Grade
+  doc.font('Helvetica').fontSize(16).fillColor('#4a5568')
+     .text(`Passing Grade: ${cert.score}%`, 0, 360, { align: 'center' });
+  
+  doc.text(`Issued on: ${new Date(cert.issueDate).toLocaleDateString()}`, 0, 385, { align: 'center' });
+
+  // Instructor
+  doc.moveDown(4);
+  const instructorY = 450;
+  
+  doc.text('Instructor', 100, instructorY);
+  doc.font('Helvetica-Bold').text(cert.instructorName, 100, instructorY + 25);
+  doc.moveTo(100, instructorY + 20).lineTo(300, instructorY + 20).stroke();
+
+  // ID
+  doc.font('Helvetica').fontSize(10).fillColor('#cbd5e0')
+     .text(`Certificate ID: ${cert.certificateId}`, 20, doc.page.height - 30);
+
+  // QR Code
+  if (cert.qrCodeData) {
+    const qrImage = cert.qrCodeData.split(';base64,').pop();
+    const imgBuffer = Buffer.from(qrImage, 'base64');
+    
+    // Position QR code in bottom right
+    const qrSize = 100;
+    doc.image(imgBuffer, doc.page.width - 150, doc.page.height - 150, { width: qrSize });
+    
+    doc.fontSize(10).fillColor('#4a5568')
+       .text('Scan to Verify', doc.page.width - 150, doc.page.height - 40, { width: qrSize, align: 'center' });
   }
+
+  doc.end();
 };
-
-/**
- * Verify certificate authenticity
- */
-exports.verifyCertificate = async (certificateId) => {
-  const certificate = await Certificate.findOne({ certificateId })
-    .populate('candidate', 'profile.firstName profile.lastName')
-    .populate('course', 'title');
-
-  if (!certificate) {
-    return {
-      valid: false,
-      reason: 'Certificate not found',
-    };
-  }
-
-  if (certificate.status === 'revoked') {
-    return {
-      valid: false,
-      reason: 'Certificate has been revoked',
-      revokedAt: certificate.revokedAt,
-      revokeReason: certificate.revokeReason,
-    };
-  }
-
-  // Verify blockchain if available
-  let blockchainVerified = false;
-  if (certificate.blockchain && certificate.blockchain.transactionHash) {
-    try {
-      blockchainVerified = await this.verifyOnBlockchain(certificateId, certificate.blockchain.certificateHash);
-    } catch (error) {
-      console.warn('Blockchain verification failed:', error.message);
-    }
-  }
-
-  return {
-    valid: true,
-    certificate: {
-      id: certificate.certificateId,
-      candidateName: certificate.metadata.candidateName,
-      courseTitle: certificate.metadata.courseTitle,
-      score: certificate.metadata.score,
-      issuedAt: certificate.issuedAt,
-      blockchain: certificate.blockchain,
-    },
-    blockchainVerified,
-  };
-};
-
-/**
- * Verify certificate on blockchain
- */
-exports.verifyOnBlockchain = async (certificateId, expectedHash) => {
-  try {
-    const provider = new ethers.JsonRpcProvider(process.env.POLYGON_RPC_URL);
-    const contract = new ethers.Contract(
-      process.env.CERTIFICATE_CONTRACT_ADDRESS,
-      certificateContractABI,
-      provider
-    );
-
-    const [storedHash, timestamp, issuer, revoked] = await contract.verifyCertificate(certificateId);
-
-    return storedHash === expectedHash && !revoked;
-  } catch (error) {
-    throw new Error(`Blockchain verification failed: ${error.message}`);
-  }
-};
-
-/**
- * Revoke certificate (admin only)
- */
-exports.revokeCertificate = async (certificateId, adminId, reason) => {
-  const certificate = await Certificate.findOne({ certificateId });
-
-  if (!certificate) {
-    throw new Error('Certificate not found');
-  }
-
-  if (certificate.status === 'revoked') {
-    throw new Error('Certificate is already revoked');
-  }
-
-  certificate.status = 'revoked';
-  certificate.revokedAt = new Date();
-  certificate.revokedBy = adminId;
-  certificate.revokeReason = reason;
-
-  await certificate.save();
-
-  return certificate;
-};
-
-module.exports = exports;

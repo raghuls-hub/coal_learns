@@ -56,9 +56,21 @@ export default function AssessmentResults() {
           <button onClick={() => navigate('/my-learning')} style={styles.primaryBtn}>
             Continue Learning
           </button>
-          <button onClick={() => navigate(`/assessment/${assessmentId}/take`)} style={styles.secondaryBtn}>
-            Retake Assessment
-          </button>
+          
+          {passed && results.isFinalExam && results.certificateId && (
+            <button 
+              onClick={() => window.open(`http://localhost:5000/api/certificates/download/${results.certificateId}`, '_blank')}
+              style={styles.certificateBtn}
+            >
+              🎓 Download Certificate
+            </button>
+          )}
+
+          {!passed && (
+            <button onClick={() => navigate(`/assessment/${assessmentId}/take`)} style={styles.secondaryBtn}>
+              Retake Assessment
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -85,5 +97,6 @@ const styles = {
   actions: { padding: '2rem', display: 'flex', gap: '1rem', borderTop: '1px solid #e2e8f0' },
   primaryBtn: { flex: 1, padding: '1rem', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' },
   secondaryBtn: { flex: 1, padding: '1rem', background: '#e2e8f0', color: '#4a5568', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' },
+  certificateBtn: { flex: 1, padding: '1rem', background: '#d69e2e', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(214, 158, 46, 0.4)' },
   button: { marginTop: '1rem', padding: '0.75rem 1.5rem', background: '#667eea', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' },
 };

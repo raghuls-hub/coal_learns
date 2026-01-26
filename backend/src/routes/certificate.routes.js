@@ -2,15 +2,13 @@ const express = require('express');
 const router = express.Router();
 const certificateController = require('../controllers/certificateController');
 const auth = require('../middleware/auth');
-const { requireRole } = require('../middleware/rbac');
-
-// Public verification
-router.get('/verify/:certificateId', certificateController.verifyCertificate);
 
 // Protected routes
-router.use(auth);
+router.get('/my', auth, certificateController.getMyCertificates);
 
-router.post('/generate', requireRole('admin', 'candidate'), certificateController.generateCertificate);
-router.post('/revoke/:certificateId', requireRole('admin'), certificateController.revokeCertificate);
+// Public routes (Verification and Download)
+router.get('/verify/:id', certificateController.verifyCertificate);
+router.get('/download/:id', certificateController.downloadCertificate); // Usually public if they have the ID, or protect it? User said scan QR -> Web -> Verify. Download might be protected or link based. I'll make download public if they have the UUID.
+router.get('/:id', certificateController.getCertificate);
 
 module.exports = router;

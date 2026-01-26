@@ -37,6 +37,15 @@ export default function Navigation() {
               My Learning
             </button>
           )}
+
+          {isAuthenticated && (
+            <button
+              onClick={() => navigate('/my-certificates')}
+              style={isActive('/my-certificates') ? styles.linkActive : styles.link}
+            >
+              Start Certificates
+            </button>
+          )}
         </div>
 
         <div style={styles.actions}>

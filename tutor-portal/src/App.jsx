@@ -7,6 +7,7 @@ import MyCourses from './pages/MyCourses';
 import CreateCourse from './pages/CreateCourse';
 import CourseDetails from './pages/CourseDetails';
 import ModuleEditor from './pages/ModuleEditor';
+import FinalAssessmentEditor from './pages/FinalAssessmentEditor';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -47,6 +48,7 @@ function App() {
             <Route path="/my-courses" element={<MyCourses />} />
             <Route path="/create-course" element={<CreateCourse />} />
             <Route path="/course/:courseId" element={<CourseDetails />} />
+            <Route path="/course/:courseId/final-exam" element={<FinalAssessmentEditor />} />
             <Route path="/course/:courseId/module/:moduleId" element={<ModuleEditor />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Route>

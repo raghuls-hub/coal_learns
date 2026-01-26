@@ -9,6 +9,7 @@ const { validate, schemas } = require('../middleware/validation');
 // Public routes (with optional identification)
 router.get('/', identify, courseController.getCourses);
 router.get('/:id', identify, courseController.getCourseById);
+router.get('/:id/final-assessment', identify, courseController.getFinalAssessment);
 
 // Protected routes - Course Handler ONLY for creation
 router.post(
@@ -78,6 +79,13 @@ router.post(
   auth,
   requireRole('mentor', 'admin'),
   courseController.addAssessment
+);
+
+router.post(
+  '/:id/assessment',
+  auth,
+  requireRole('mentor', 'admin'),
+  courseController.addCourseAssessment
 );
 
 // Content Routes

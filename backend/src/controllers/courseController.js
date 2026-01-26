@@ -151,12 +151,30 @@ exports.deleteCourse = async (req, res, next) => {
  */
 exports.togglePublish = async (req, res, next) => {
   try {
-    const course = await courseService.togglePublishCourse(req.params.id, req.user.userId, req.user.role);
+    // If publishing, check mandatory requirements
+    const course = await Course.findById(req.params.id);
+    if (!course.settings.isPublished) { // We are about to publish
+       // Check for Final Assessment
+       const Assessment = require('../models/Assessment');
+       const finalExam = await Assessment.findOne({ 
+         course: req.params.id, 
+         type: 'final_exam' 
+       });
+
+       if (!finalExam) {
+         return res.status(400).json({
+           success: false,
+           error: 'Cannot publish course: Mandatory Final Assessment is missing.'
+         });
+       }
+    }
+
+    const updatedCourse = await courseService.togglePublishCourse(req.params.id, req.user.userId, req.user.role);
 
     res.status(200).json({
       success: true,
-      message: `Course ${course.settings.isPublished ? 'published' : 'unpublished'} successfully`,
-      data: course,
+      message: `Course ${updatedCourse.settings.isPublished ? 'published' : 'unpublished'} successfully`,
+      data: updatedCourse,
     });
   } catch (error) {
     next(error);
@@ -278,6 +296,20 @@ exports.addAssessment = async (req, res, next) => {
 };
 
 /**
+ * @route   POST /api/courses/:id/assessment
+ * @desc    Add course-level assessment (Final Exam)
+ * @access  Private
+ */
+exports.addCourseAssessment = async (req, res, next) => {
+  try {
+    const assessment = await courseService.addAssessmentToCourse(req.params.id, req.body);
+    res.status(201).json({ success: true, message: 'Final Assessment created', data: assessment });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @route   PUT /api/content/:contentId
  * @desc    Update content
  * @access  Private
@@ -286,6 +318,24 @@ exports.updateContent = async (req, res, next) => {
   try {
     const content = await courseService.updateContent(req.params.contentId, req.body);
     res.status(200).json({ success: true, message: 'Content updated', data: content });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+/**
+ * @route   GET /api/courses/:id/final-assessment
+ * @desc    Get final assessment for course
+ * @access  Private
+ */
+exports.getFinalAssessment = async (req, res, next) => {
+  try {
+    const Assessment = require('../models/Assessment');
+    const assessment = await Assessment.findOne({ course: req.params.id, type: 'final_exam' });
+    
+    // It's okay if null
+    res.status(200).json({ success: true, data: assessment });
   } catch (error) {
     next(error);
   }

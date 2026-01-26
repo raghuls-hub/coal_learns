@@ -10,6 +10,8 @@ import MyLearning from './pages/MyLearning';
 import LearningInterface from './pages/LearningInterface';
 import TakeAssessment from './pages/TakeAssessment';
 import AssessmentResults from './pages/AssessmentResults';
+import CertificateVerify from './pages/CertificateVerify';
+import MyCertificates from './pages/MyCertificates';
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -39,6 +41,7 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
+          <Route path="/verify/:certificateId" element={<CertificateVerify />} />
           
           {/* Protected Routes */}
           <Route path="/" element={<Navigate to="/catalog" />} />
@@ -59,6 +62,14 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <MyLearning />
+              </Layout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/my-certificates" element={
+            <ProtectedRoute>
+              <Layout>
+                <MyCertificates />
               </Layout>
             </ProtectedRoute>
           } />

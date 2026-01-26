@@ -245,6 +245,27 @@ exports.addAssessmentToModule = async (moduleId, assessmentData) => {
 };
 
 /**
+ * Add assessment to course (Final Exam)
+ */
+exports.addAssessmentToCourse = async (courseId, assessmentData) => {
+  // Check if final exam already exists
+  const existing = await Assessment.findOne({ course: courseId, type: 'final_exam' });
+  if (existing) {
+    throw new Error('Final Assessment already exists for this course');
+  }
+
+  const assessment = new Assessment({ 
+    ...assessmentData, 
+    course: courseId,
+    type: 'final_exam',
+    module: null // Explicitly null for course-level check
+  });
+  
+  await assessment.save();
+  return assessment;
+};
+
+/**
  * Update content
  */
 exports.updateContent = async (contentId, updateData) => {
