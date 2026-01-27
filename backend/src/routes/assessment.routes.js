@@ -1,72 +1,37 @@
 const express = require('express');
 const router = express.Router();
-const assessmentService = require('../services/assessmentService');
+const assessmentController = require('../controllers/assessmentController');
 const auth = require('../middleware/auth');
+
+// Log all assessment route requests
+router.use((req, res, next) => {
+  console.log(`[ASSESSMENT ROUTE] ${req.method} ${req.path}`);
+  console.log('[ASSESSMENT ROUTE] Full URL:', req.originalUrl);
+  next();
+});
 
 // All routes require authentication
 router.use(auth);
 
 /**
- * @route   GET /api/assessments/:assessmentId/start
+ * @route   GET /api/assessments/:id/start
  * @desc    Start assessment attempt (get questions without answers)
  * @access  Private (Candidate)
  */
-router.get('/:assessmentId/start', async (req, res, next) => {
-  try {
-    const { assessmentId } = req.params;
-    const candidateId = req.user.userId;
-    
-    const assessmentData = await assessmentService.startAttempt(assessmentId, candidateId);
-    
-    res.status(200).json({
-      success: true,
-      data: assessmentData
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.get('/:id/start', assessmentController.startAssessment);
 
 /**
- * @route   POST /api/assessments/:assessmentId/submit
+ * @route   POST /api/assessments/:id/submit
  * @desc    Submit assessment answers
  * @access  Private (Candidate)
  */
-router.post('/:assessmentId/submit', async (req, res, next) => {
-  try {
-    const { assessmentId } = req.params;
-    const { answers } = req.body;
-    const candidateId = req.user.userId;
-    
-    const results = await assessmentService.submitAnswers(assessmentId, candidateId, answers);
-    
-    res.status(200).json({
-      success: true,
-      data: results
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.post('/:id/submit', assessmentController.submitAssessment);
 
 /**
- * @route   GET /api/assessments/:assessmentId
+ * @route   GET /api/assessments/:id
  * @desc    Get assessment by ID
  * @access  Private
  */
-router.get('/:assessmentId', async (req, res, next) => {
-  try {
-    const { assessmentId } = req.params;
-    
-    const assessment = await assessmentService.getAssessmentById(assessmentId);
-    
-    res.status(200).json({
-      success: true,
-      data: assessment
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.get('/:id', assessmentController.getAssessment);
 
 module.exports = router;

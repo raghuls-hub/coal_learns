@@ -4,21 +4,43 @@ import apiClient from '../services/api';
 
 export default function MyLearning() {
   const [enrollments, setEnrollments] = useState([]);
+  const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [claiming, setClaiming] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchEnrollments();
+    fetchData();
   }, []);
 
-  const fetchEnrollments = async () => {
+  const fetchData = async () => {
     try {
-      const res = await apiClient.get('/enrollments/my-courses');
-      setEnrollments(res.data.data || []);
+      const [enrollRes, certRes] = await Promise.all([
+        apiClient.get('/enrollments/my-courses'),
+        apiClient.get('/certificates/my')
+      ]);
+      setEnrollments(enrollRes.data.data || []);
+      setCertificates(certRes.data.data || []);
     } catch (error) {
-      console.error('Failed to fetch enrollments:', error);
+      console.error('Failed to fetch data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleClaimCertificate = async (courseId) => {
+    setClaiming(courseId);
+    try {
+      const res = await apiClient.post('/certificates/claim', { courseId });
+      if (res.data.success) {
+        alert('Certificate Claimed Successfully!');
+        fetchData(); // Refresh both lists
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Failed to claim certificate');
+    } finally {
+      setClaiming(null);
     }
   };
 
@@ -46,11 +68,23 @@ export default function MyLearning() {
         </div>
       ) : (
         <div style={styles.grid}>
-          {enrollments.map(enrollment => (
+          {enrollments.map(enrollment => {
+             // Check if certificate exists for this course
+             const cert = certificates.find(c => 
+               c.course && enrollment.course && 
+               (c.course._id === enrollment.course._id || c.course === enrollment.course._id)
+             );
+             const isClaimed = !!cert;
+
+             const isCompleted = enrollment.progress === 100 || enrollment.status === 'completed';
+             
+             return (
             <div key={enrollment._id} style={styles.card} className="card-hover">
               <div style={styles.cardHeader}>
                 <h3 style={styles.courseTitle}>{enrollment.course.title}</h3>
-                <span style={styles.status}>{enrollment.status}</span>
+                <span style={{...styles.status, background: isCompleted ? '#C6F6D5' : '#EBF8FF', color: isCompleted ? '#22543D' : '#2C5282'}}>
+                    {enrollment.status}
+                </span>
               </div>
               
               <p style={styles.courseDesc}>{enrollment.course.description}</p>
@@ -62,14 +96,35 @@ export default function MyLearning() {
                 <span style={styles.progressText}>{enrollment.progress || 0}% Complete</span>
               </div>
               
-              <button
-                onClick={() => navigate(`/learning/${enrollment._id}`)}
-                style={styles.continueBtn}
-              >
-                Continue Learning →
-              </button>
+              <div style={styles.actions}>
+                  <button
+                    onClick={() => navigate(`/learning/${enrollment._id}`)}
+                    style={styles.continueBtn}
+                  >
+                    {isCompleted ? 'Review Course' : 'Continue Learning →'}
+                  </button>
+
+                  {isCompleted && (
+                      !isClaimed ? (
+                        <button 
+                            onClick={() => handleClaimCertificate(enrollment.course._id)}
+                            disabled={claiming === enrollment.course._id}
+                            style={styles.claimBtn}
+                        >
+                            {claiming === enrollment.course._id ? 'Claiming...' : '🎓 Claim Certificate'}
+                        </button>
+                      ) : (
+                        <button 
+                            onClick={() => navigate(`/my-certificates`)} 
+                            style={styles.viewCertBtn}
+                        >
+                            📜 View Certificate
+                        </button>
+                      )
+                  )}
+              </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
     </div>
@@ -89,11 +144,14 @@ const styles = {
   card: { background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column' },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' },
   courseTitle: { fontSize: '20px', fontWeight: '700', color: '#2d3748', flex: 1 },
-  status: { padding: '0.375rem 0.75rem', background: '#C6F6D5', color: '#22543D', fontSize: '12px', fontWeight: '600', borderRadius: '6px', textTransform: 'capitalize' },
+  status: { padding: '0.375rem 0.75rem', fontSize: '12px', fontWeight: '600', borderRadius: '6px', textTransform: 'capitalize' },
   courseDesc: { fontSize: '14px', color: '#718096', marginBottom: '1.5rem', lineHeight: '1.6' },
   progressSection: { marginBottom: '1.5rem' },
   progressBar: { width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', marginBottom: '0.5rem' },
   progressFill: { height: '100%', background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)', transition: 'width 0.3s' },
   progressText: { fontSize: '13px', color: '#4a5568', fontWeight: '600' },
-  continueBtn: { padding: '0.75rem', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
+  actions: { display: 'flex', gap: '1rem', marginTop: 'auto' },
+  continueBtn: { flex: 1, padding: '0.75rem', background: '#EDF2F7', color: '#2D3748', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
+  claimBtn: { flex: 1, padding: '0.75rem', background: 'linear-gradient(135deg, #48BB78 0%, #38A169 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
+  viewCertBtn: { flex: 1, padding: '0.75rem', background: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
 };

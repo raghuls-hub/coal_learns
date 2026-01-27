@@ -14,12 +14,9 @@ export default function CertificateVerify() {
 
   const verify = async () => {
     try {
-      // Direct axios call if apiClient checks auth and this is public?
-      // Wait, apiClient adds token. Protected routes need token.
-      // But verify is public. 
-      // If apiClient always adds token and fails if missing, we might need a separate instance or handle error.
-      // But typically for public routes, backend allows it regardless of token.
-      const res = await apiClient.get(`/api/certificates/verify/${certificateId}`);
+      // Endpoint is GET /api/certificates/:id
+      // apiClient likely has baseURL set to /api
+      const res = await apiClient.get(`/certificates/${certificateId}`);
       if (res.data.success) {
         setData(res.data.data);
       } else {
@@ -51,11 +48,11 @@ export default function CertificateVerify() {
              <div style={styles.details}>
                <div style={styles.row}>
                  <span style={styles.label}>Recipient:</span>
-                 <strong style={styles.value}>{data.student.firstName} {data.student.lastName}</strong>
+                 <strong style={styles.value}>{data.user.profile.firstName} {data.user.profile.lastName}</strong>
                </div>
                <div style={styles.row}>
                  <span style={styles.label}>Course:</span>
-                 <strong style={styles.value}>{data.course.title}</strong>
+                 <strong style={styles.value}>{data.course?.title || 'Course Title Unavailable'}</strong>
                </div>
                <div style={styles.row}>
                  <span style={styles.label}>Issue Date:</span>
@@ -63,7 +60,7 @@ export default function CertificateVerify() {
                </div>
                <div style={styles.row}>
                  <span style={styles.label}>Instructor:</span>
-                 <span style={styles.value}>{data.instructor}</span>
+                 <span style={styles.value}>{data.instructorName || 'Platform Instructor'}</span>
                </div>
                <div style={styles.row}>
                  <span style={styles.label}>Certificate ID:</span>

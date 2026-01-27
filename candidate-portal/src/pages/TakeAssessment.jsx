@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import apiClient from '../services/api';
 
 export default function TakeAssessment() {
   const { assessmentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [assessment, setAssessment] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -29,6 +30,7 @@ export default function TakeAssessment() {
   };
 
   const handleAnswerChange = (questionId, answer) => {
+    console.log('[TakeAssessment] Answer changed:', { questionId, answer, type: typeof answer });
     setAnswers({ ...answers, [questionId]: answer });
   };
 
@@ -45,15 +47,24 @@ export default function TakeAssessment() {
     try {
       const formattedAnswers = questions.map(q => ({
         questionId: q._id,
-        answer: answers[q._id] || ''
+        answer: answers[q._id] ?? ''  // Use ?? instead of || to preserve 0
       }));
 
+      console.log('[TakeAssessment] Submitting answers:', formattedAnswers);
+      console.log('[TakeAssessment] Raw answers state:', answers);
+
       const res = await apiClient.post(`/assessments/${assessmentId}/submit`, {
-        answers: formattedAnswers
+        answers: formattedAnswers,
+        enrollmentId: location.state?.enrollmentId // Explicitly pass context
       });
 
       // Navigate to results (store in state or pass via URL)
-      navigate(`/assessment/${assessmentId}/results`, { state: { results: res.data.data } });
+      navigate(`/assessment/${assessmentId}/results`, { 
+          state: { 
+              results: res.data.data,
+              enrollmentId: location.state?.enrollmentId // Pass it forward
+          } 
+      });
     } catch (error) {
       alert('Failed to submit assessment');
       setSubmitting(false);
@@ -84,14 +95,14 @@ export default function TakeAssessment() {
 
             {question.type === 'mcq' && (
               <div style={styles.optionsList}>
-                {question.options.map((option, optIdx) => (
+                  {question.options.map((option, optIdx) => (
                   <label key={optIdx} style={styles.optionLabel}>
                     <input
                       type="radio"
                       name={`question-${question._id}`}
-                      value={option}
-                      checked={answers[question._id] === option}
-                      onChange={() => handleAnswerChange(question._id, option)}
+                      value={optIdx}
+                      checked={answers[question._id] === optIdx}
+                      onChange={() => handleAnswerChange(question._id, optIdx)}
                       style={styles.radio}
                     />
                     <span>{option}</span>

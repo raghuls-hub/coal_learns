@@ -4,84 +4,74 @@ const ProgressSchema = new mongoose.Schema({
   enrollment: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Enrollment',
-    required: [true, 'Enrollment reference is required'],
+    required: true,
+    unique: true
   },
-  candidate: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Candidate is required'],
+    required: true
   },
   course: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course',
-    required: [true, 'Course is required'],
+    required: true
   },
-  
+
+  // Track completed content (Videos/PDFs) by ID. 
+  // Using a Set concept (array of unique IDs).
+  completedContent: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Content'
+  }],
+
+  // Track status of modules
   moduleProgress: [{
     module: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Module',
+      ref: 'Module'
     },
-    isUnlocked: {
-      type: Boolean,
-      default: false,
-    },
-    isCompleted: {
-      type: Boolean,
-      default: false,
-    },
-    completionPercentage: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 100,
-    },
-    
-    contentProgress: [{
-      content: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Content',
-      },
-      isCompleted: {
-        type: Boolean,
-        default: false,
-      },
-      watchTime: {
-        type: Number, // For videos (in seconds)
-        default: 0,
-      },
-      lastAccessedAt: Date,
-    }],
-    
-    assessmentAttempts: [{
-      assessment: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Assessment',
-      },
-      attemptDate: Date,
-      score: Number,
-      passed: Boolean,
-    }],
-    
-    completedAt: Date,
+    isUnlocked: { type: Boolean, default: false },
+    isCompleted: { type: Boolean, default: false }
   }],
-  
-  overallCompletion: {
-    type: Number,
-    default: 0,
-    min: 0,
-    max: 100,
+
+  // Track assessment results
+  assessmentScores: [{
+    assessment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Assessment'
+    },
+    score: { type: Number, default: 0 },
+    passed: { type: Boolean, default: false },
+    attempts: { type: Number, default: 0 },
+    lastAttemptDate: Date
+  }],
+
+  // Latches
+  courseCompleted: {
+    type: Boolean,
+    default: false
   },
+  
   finalExamUnlocked: {
     type: Boolean,
-    default: false,
+    default: false
   },
+  
+  certificateClaimed: {
+    type: Boolean,
+    default: false
+  },
+
+  lastAccessed: {
+    type: Date,
+    default: Date.now
+  }
 }, {
-  timestamps: true,
+  timestamps: true
 });
 
-// Index for fast progress lookups
-ProgressSchema.index({ enrollment: 1 });
-ProgressSchema.index({ candidate: 1, course: 1 });
+// Compound index for quick lookups
+ProgressSchema.index({ user: 1, course: 1 }, { unique: true });
 
 module.exports = mongoose.model('Progress', ProgressSchema);

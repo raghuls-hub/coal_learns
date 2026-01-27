@@ -1,142 +1,211 @@
 const Certificate = require('../models/Certificate');
 const Enrollment = require('../models/Enrollment');
+const Progress = require('../models/Progress');
 const Course = require('../models/Course');
-const User = require('../models/User');
 const QRCode = require('qrcode');
-const PDFDocument = require('pdfkit');
-const fs = require('fs');
+
 
 /**
- * Generate a new certificate
+ * Claim Certificate (Manual Trigger)
  */
-exports.generateCertificate = async (enrollmentId) => {
-  // Fetch details
-  const enrollment = await Enrollment.findById(enrollmentId)
-    .populate('user')
-    .populate('course')
-    .populate({
-      path: 'course',
-      populate: { path: 'courseHandler', select: 'profile' }
-    });
+exports.claimCertificate = async (enrollmentId, userId) => {
+  console.log(`[Services] Claiming cert for Enr: ${enrollmentId}, User: ${userId}`);
+  try {
+      // 1. Verify Progress
+      const progress = await Progress.findOne({ enrollment: enrollmentId, user: userId });
+      if (!progress) {
+          console.error("Progress not found");
+          throw new Error('Progress not found');
+      }
 
-  if (!enrollment) throw new Error('Enrollment not found');
+      if (!progress.courseCompleted) {
+        console.error("Course not completed");
+        throw new Error('Course is not completed. You must pass the final exam.');
+      }
 
-  // Check if already exists
-  const existingCert = await Certificate.findOne({ enrollment: enrollmentId });
-  if (existingCert) return existingCert;
+      // 2. Check if already exists
+      let cert = await Certificate.findOne({ enrollment: enrollmentId });
+      if (cert) {
+          console.log("Certificate already exists:", cert._id);
+          if (!progress.certificateClaimed) {
+              progress.certificateClaimed = true;
+              await progress.save();
+          }
+          return cert;
+      }
 
-  // Generate Verification URL
-  // Ideally this points to the frontend verification route
-  // e.g. https://lms-app.com/verify/:id
-  // For dev: http://localhost:5173/verify/:id
-  const baseUrl = process.env.APP_URL || 'http://localhost:5173';
-  
-  // Temporary ID for URL generation (will update after save if uuid used, but schema uses uuid by default)
-  // We can rely on a generated UUID or let mongoose default do it.
-  // Mongoose default in schema is uuidv4.
-  
-  // We need the ID for the QR code.
-  // Let's create the object first.
-  const cert = new Certificate({
-    user: enrollment.user._id,
-    course: enrollment.course._id,
-    enrollment: enrollment._id,
-    instructorName: `${enrollment.course.courseHandler.profile.firstName} ${enrollment.course.courseHandler.profile.lastName}`,
-    courseName: enrollment.course.title,
-    score: enrollment.progress || 100, // Fallback if progress not tracked exactly
-    // verificationUrl and qrCodeData will be set below
-  });
+      // 3. Generate New
+      console.log("Generating new certificate...");
+      const enrollment = await Enrollment.findById(enrollmentId)
+        .populate('user')
+        .populate({
+            path: 'course',
+            populate: { path: 'courseHandler', select: 'profile' } // Instructor info
+        });
+      
+      if (!enrollment) throw new Error("Enrollment fetch failed");
+      if (!enrollment.course) {
+          console.error("Enrollment has no course attached. Data integrity issue.");
+          throw new Error("Course data missing from enrollment");
+      }
+      console.log("Enrollment loaded. Course:", enrollment.course.title);
 
-  const verificationUrl = `${baseUrl}/verify/${cert.certificateId}`;
-  cert.verificationUrl = verificationUrl;
+      const baseUrl = process.env.APP_URL || 'http://localhost:5173';
+      
+      // Safe extraction of instructor name
+      let instructorName = 'Antigravity LMS Instructor';
+      if (enrollment.course && enrollment.course.courseHandler && enrollment.course.courseHandler.profile) {
+          instructorName = `${enrollment.course.courseHandler.profile.firstName || ''} ${enrollment.course.courseHandler.profile.lastName || ''}`.trim();
+      }
+      if (!instructorName || instructorName === ' ') instructorName = 'Platform Instructor';
+      console.log("Instructor:", instructorName);
 
-  // Generate QR Code
-  const qrCodeData = await QRCode.toDataURL(verificationUrl);
-  cert.qrCodeData = qrCodeData;
+      cert = new Certificate({
+        user: userId,
+        course: enrollment.course._id,
+        enrollment: enrollmentId,
+        instructorName: instructorName,
+        courseName: enrollment.course.title || 'Untitled Course',
+        score: 100, // Or fetch final exam score if needed
+        certificateClaimed: true
+      });
 
-  await cert.save();
-  return cert;
+      console.log("Certificate Object Created. Generating QR...");
+      const verificationUrl = `${baseUrl}/verify/${cert.certificateId}`;
+      cert.verificationUrl = verificationUrl;
+      cert.qrCodeData = await QRCode.toDataURL(verificationUrl);
+      console.log("QR Generated.");
+
+      await cert.save();
+      console.log("Certificate Saved:", cert._id);
+
+      // Update Progress Latch
+      progress.certificateClaimed = true;
+      await progress.save();
+
+      return cert;
+  } catch (err) {
+      console.error("[Services] Claim Certificate Failed:", err);
+      throw err;
+  }
 };
 
 /**
- * Generate PDF Stream for a certificate
+ * Generate PDF (Existing logic preserved)
  */
+const PDFDocument = require('pdfkit');
+const path = require('path');
+
 exports.generatePDF = async (certificateId, res) => {
   const cert = await Certificate.findOne({ certificateId });
   if (!cert) throw new Error('Certificate not found');
 
+  const populatedCert = await Certificate
+    .findById(cert._id)
+    .populate('user');
+
   const doc = new PDFDocument({
-    layout: 'landscape',
     size: 'A4',
+    layout: 'landscape',
     margin: 0
   });
 
-  // Pipe to response
   doc.pipe(res);
 
-  // -- Design --
-  
-  // Background / Border
-  doc.rect(20, 20, doc.page.width - 40, doc.page.height - 40)
-     .stroke('#1a202c');
-  
-  doc.rect(40, 40, doc.page.width - 80, doc.page.height - 80)
-     .stroke('#4a5568');
+  /* ================= BACKGROUND ================= */
+  const templatePath = path.join(
+    __dirname,
+    '../assets/certificate_template.jpg'
+  );
 
-  // Header
-  doc.font('Helvetica-Bold').fontSize(40).fillColor('#2d3748')
-     .text('CERTIFICATE OF COMPLETION', 0, 100, { align: 'center' });
+  doc.image(templatePath, 0, 0, {
+    width: doc.page.width,
+    height: doc.page.height
+  });
 
-  doc.font('Helvetica').fontSize(20).fillColor('#718096')
-     .text('This is to certify that', 0, 160, { align: 'center' });
+  /* ================= HEADER ================= */
+  doc.font('Helvetica-Bold')
+    .fontSize(44)
+    .fillColor('#000')
+    .text('COAL LEARNS', 0, 70, { align: 'center' });
 
-  // Candidate Name
-  // We need to fetch user name or store it in cert.
-  // Currently cert model has user ID. Need to populate or better, store snapshot in model.
-  // The plan said "Candidate Name". I'll populate for now.
-  const populatedCert = await Certificate.findById(cert._id).populate('user');
-  const candidateName = `${populatedCert.user.profile.firstName} ${populatedCert.user.profile.lastName}`;
+  doc.fontSize(30)
+    .text('CERTIFICATE', 0, 135, { align: 'center' });
 
-  doc.font('Helvetica-Bold').fontSize(35).fillColor('#1a202c')
-     .text(candidateName, 0, 200, { align: 'center' });
+  doc.font('Helvetica')
+    .fontSize(14)
+    .text('OF COMPLETION', 0, 175, { align: 'center' });
 
-  doc.font('Helvetica').fontSize(20).fillColor('#718096')
-     .text('has successfully completed the course', 0, 260, { align: 'center' });
+  /* ================= BODY ================= */
+  doc.fontSize(14)
+    .text('This certificate is to certify that', 0, 220, {
+      align: 'center'
+    });
 
-  // Course Name
-  doc.font('Helvetica-Bold').fontSize(30).fillColor('#667eea')
-     .text(cert.courseName, 0, 300, { align: 'center' });
+  doc.text('Has successfully completed the', 0, 285, {
+    align: 'center'
+  });
 
-  // Success message / Grade
-  doc.font('Helvetica').fontSize(16).fillColor('#4a5568')
-     .text(`Passing Grade: ${cert.score}%`, 0, 360, { align: 'center' });
-  
-  doc.text(`Issued on: ${new Date(cert.issueDate).toLocaleDateString()}`, 0, 385, { align: 'center' });
+  /* ================= NAME ================= */
+  const candidateName =
+    `${populatedCert.user.profile.firstName} ${populatedCert.user.profile.lastName}`;
 
-  // Instructor
-  doc.moveDown(4);
-  const instructorY = 450;
-  
-  doc.text('Instructor', 100, instructorY);
-  doc.font('Helvetica-Bold').text(cert.instructorName, 100, instructorY + 25);
-  doc.moveTo(100, instructorY + 20).lineTo(300, instructorY + 20).stroke();
+  doc.font('Helvetica-Oblique')
+    .fontSize(20)
+    .text(candidateName, 0, 315, {
+      align: 'center'
+    });
 
-  // ID
-  doc.font('Helvetica').fontSize(10).fillColor('#cbd5e0')
-     .text(`Certificate ID: ${cert.certificateId}`, 20, doc.page.height - 30);
+  /* ================= PASS BADGE TEXT ================= */
+  doc.font('Helvetica-Bold')
+    .fontSize(10)
+    .text('Pass', 115, 300, {
+      width: 60,
+      align: 'center'
+    });
 
-  // QR Code
+  doc.fontSize(13)
+    .text('100%', 115, 315, {
+      width: 60,
+      align: 'center'
+    });
+
+  /* ================= SIGNATURE ================= */
+  doc.moveTo(doc.page.width / 2 - 110, 360)
+    .lineTo(doc.page.width / 2 + 110, 360)
+    .stroke();
+
+  doc.font('Helvetica')
+    .fontSize(12)
+    .text('Instructor', doc.page.width / 2 - 100, 372, {
+      width: 200,
+      align: 'center'
+    });
+
+  /* ================= QR ================= */
   if (cert.qrCodeData) {
-    const qrImage = cert.qrCodeData.split(';base64,').pop();
-    const imgBuffer = Buffer.from(qrImage, 'base64');
-    
-    // Position QR code in bottom right
-    const qrSize = 100;
-    doc.image(imgBuffer, doc.page.width - 150, doc.page.height - 150, { width: qrSize });
-    
-    doc.fontSize(10).fillColor('#4a5568')
-       .text('Scan to Verify', doc.page.width - 150, doc.page.height - 40, { width: qrSize, align: 'center' });
+    const qrBuffer = Buffer.from(
+      cert.qrCodeData.split(',')[1],
+      'base64'
+    );
+
+    doc.image(qrBuffer, doc.page.width - 160, 285, {
+      width: 85
+    });
   }
+
+  /* ================= FOOTER ================= */
+  doc.font('Helvetica')
+    .fontSize(7)
+    .fillColor('#888')
+    .text(
+      `Certificate ID: ${cert.certificateId} | Issued: ${new Date(cert.issueDate).toLocaleDateString()}`,
+      0,
+      doc.page.height - 20,
+      { align: 'center' }
+    );
 
   doc.end();
 };
+
+

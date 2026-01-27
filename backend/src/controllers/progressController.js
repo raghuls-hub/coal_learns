@@ -12,6 +12,12 @@ exports.getProgress = catchAsync(async (req, res) => {
 
   const progress = await progressService.getProgress(enrollmentId, candidateId);
 
+  console.log('[getProgress] Returning progress:', {
+    enrollmentId,
+    assessmentScoresCount: progress?.assessmentScores?.length || 0,
+    finalExamUnlocked: progress?.finalExamUnlocked
+  });
+
   res.status(200).json({
     success: true,
     data: progress
@@ -28,19 +34,22 @@ exports.markContentComplete = catchAsync(async (req, res) => {
   const { moduleId, watchTime } = req.body;
   const candidateId = req.user.userId;
 
+  /*
   if (!moduleId) {
     return res.status(400).json({
       success: false,
       error: 'Module ID is required'
     });
   }
+  */
+  console.log(`[Controller] Mark Complete: Enr=${enrollmentId}, Content=${contentId}`);
 
-  const progress = await progressService.markContentComplete(
+  // New service signature: markContentCompleted(enrollmentId, userId, contentId)
+  // We no longer need moduleId or watchTime for the core simple logic
+  const progress = await progressService.markContentCompleted(
     enrollmentId,
     candidateId,
-    moduleId,
-    contentId,
-    watchTime
+    contentId
   );
 
   res.status(200).json({

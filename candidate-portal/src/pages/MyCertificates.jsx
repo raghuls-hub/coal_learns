@@ -50,13 +50,16 @@ export default function MyCertificates() {
               </div>
               
               <div style={styles.cardBody}>
-                <h3 style={styles.courseTitle}>{cert.course.title}</h3>
+                <h3 style={styles.courseTitle}>{cert.course?.title || 'Course Title Unavailable'}</h3>
                 <p style={styles.certId}>ID: {cert.certificateId}</p>
               </div>
 
               <div style={styles.cardFooter}>
                 <button 
-                  onClick={() => window.open(`http://localhost:5000/api/certificates/download/${cert.certificateId}`, '_blank')}
+                  onClick={() => {
+                    const token = localStorage.getItem('token');
+                    window.open(`http://localhost:5000/api/certificates/download/${cert.certificateId}?token=${token}`, '_blank');
+                  }}
                   style={styles.downloadBtn}
                 >
                   Download PDF

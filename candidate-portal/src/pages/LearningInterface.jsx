@@ -27,22 +27,18 @@ export default function LearningInterface() {
       if (course.modules && course.modules.length > 0) {
         setModules(course.modules);
         
-        // Initial load
-        // Only set default if nothing selected yet
+        // Initial load only
         if (!currentModule && course.modules[0].content && course.modules[0].content.length > 0) {
            setCurrentModule(course.modules[0]);
            setCurrentContent(course.modules[0].content[0]);
         }
       }
 
-      // Check progress for unlocks
-      const progressRes = await apiClient.get(`/progress/${enrollmentId}`);
-      setProgress(progressRes.data.data || {});
+      await fetchProgress(); // Separate function
 
       // Fetch Final Exam info
       const examRes = await apiClient.get(`/courses/${course._id}/final-assessment`);
       if (examRes.data.data) {
-        console.log('Final Exam found:', examRes.data.data);
         setFinalExam(examRes.data.data);
       }
 
@@ -53,31 +49,77 @@ export default function LearningInterface() {
     }
   };
 
+  const fetchProgress = async () => {
+      try {
+        const progressRes = await apiClient.get(`/progress/${enrollmentId}`);
+        const data = progressRes.data.data;
+        
+        if (!data) return;
+
+        // Transform Backend Data (Object/Arrays) to UI State (Map of IDs -> Boolean)
+        const newProgress = {};
+        
+        // 1. Map Completed Content
+        if (data.completedContent) {
+            data.completedContent.forEach(c => {
+                const id = c._id || c; 
+                newProgress[id] = true;
+            });
+        }
+
+        // 2. Map Completed Assessments (Checkmarks)
+        if (data.assessmentScores) {
+            console.log('[Frontend] Raw assessmentScores:', data.assessmentScores);
+            data.assessmentScores.forEach(score => {
+                console.log('[Frontend] Processing score:', {
+                    assessment: score.assessment,
+                    assessmentType: typeof score.assessment,
+                    hasId: !!score.assessment?._id,
+                    passed: score.passed
+                });
+                if (score.passed) {
+                    const id = score.assessment?._id || score.assessment;
+                    console.log(`[Frontend] Mapping assessment ${id} = true`);
+                    newProgress[id] = true; // Use Assessment ID as key
+                }
+            });
+        }
+        
+        // 3. Map Final Exam Unlock Status (from backend)
+        // Backend determines unlock based on: all content complete + all assessments passed
+        newProgress.finalExamUnlocked = data.finalExamUnlocked || false;
+        
+        console.log('[Frontend] Processed Progress State:', newProgress);
+        console.log('[Frontend] Final Exam Unlocked:', newProgress.finalExamUnlocked);
+        setProgress(newProgress);
+        
+      } catch (err) { console.error('[Frontend] Fetch Progress Error:', err); }
+  };
+
   const handleContentClick = (module, content) => {
     setCurrentModule(module);
     setCurrentContent(content);
   };
 
   const markComplete = async () => {
-    console.log('Marking complete:', { 
-      contentId: currentContent?._id, 
-      moduleId: currentModule?._id 
-    });
-
-    if (!currentContent || !currentModule) {
-      console.error('Missing content or module');
-      return;
-    }
+    if (!currentContent || !currentModule) return;
     
     try {
-      await apiClient.put(`/progress/${enrollmentId}/content/${currentContent._id}`, {
+      const url = `/progress/${enrollmentId}/content/${currentContent._id}`;
+      // console.log('[Frontend] Sending PUT to:', url); // Kept for minimal debug if needed
+      
+      const res = await apiClient.put(url, {
         moduleId: currentModule._id
       });
-      setProgress({...progress, [currentContent._id]: true});
-      // alert('Marked as complete!'); // Removed alert to be less annoying
+      
+      // Optimistic update
+      setProgress(prev => ({...prev, [currentContent._id]: true}));
+      
+      // Live sync
+      await fetchProgress(); 
+      
     } catch (error) {
-      console.error('Failed to mark complete:', error);
-      console.error('Request payload:', { moduleId: currentModule._id });
+      console.error('[Frontend] Failed to mark complete:', error);
     }
   };
 
@@ -107,10 +149,12 @@ export default function LearningInterface() {
               ))}
               {module.assessment && (
                 <div
-                  onClick={() => navigate(`/assessment/${module.assessment._id}/take`)}
-                  style={styles.assessmentItem}
+                  onClick={() => navigate(`/assessment/${module.assessment._id}/take`, { state: { enrollmentId } })}
+                  style={progress[module.assessment._id] ? styles.assessmentItemPassed : styles.assessmentItem}
                 >
-                  📝 Take Assessment
+                  <span style={{marginRight: '8px'}}>{progress[module.assessment._id] ? '✓' : '📝'}</span>
+                  Take Assessment
+                  {progress[module.assessment._id] && <span style={{fontSize:'12px', marginLeft:'auto'}}>Passed</span>}
                 </div>
               )}
             </div>
@@ -119,13 +163,14 @@ export default function LearningInterface() {
 
         {finalExam && (
            <div style={{padding: '1.5rem', borderTop: '1px solid #f1f5f9'}}>
-              <h4 style={{fontSize: '13px', fontWeight: '700', color: '#94a3b8', marginBottom: '0.75rem', textTransform: 'uppercase'}}>Final Assessement</h4>
+              <h4 style={{fontSize: '13px', fontWeight: '700', color: '#94a3b8', marginBottom: '0.75rem', textTransform: 'uppercase'}}>Final Assessment</h4>
+              
               <div 
                  onClick={() => {
                    if (progress.finalExamUnlocked) {
                      navigate(`/assessment/${finalExam._id}/take`);
                    } else {
-                     alert('Complete all modules to unlock the Final Exam!');
+                     alert('🔒 Final Exam is Locked\n\nTo unlock:\n• Pass all module quizzes');
                    }
                  }}
                  style={{
@@ -143,8 +188,18 @@ export default function LearningInterface() {
                  }}
               >
                 <span>{progress.finalExamUnlocked ? '🔓' : '🔒'}</span>
-                Take Final Exam
+                <span>Take Final Exam</span>
+                {!progress.finalExamUnlocked && <span style={{fontSize: '11px', marginLeft: 'auto'}}>Pass All Quizzes</span>}
               </div>
+              
+              {!progress.finalExamUnlocked && (
+                <div style={{marginTop: '0.75rem', padding: '0.75rem', background: '#fef3c7', borderRadius: '6px', fontSize: '12px', color: '#92400e'}}>
+                  <div style={{fontWeight: '600', marginBottom: '0.25rem'}}>📋 To Unlock Final Exam:</div>
+                  <div style={{marginLeft: '1.25rem'}}>
+                    ✓ Pass all module quizzes
+                  </div>
+                </div>
+              )}
            </div>
         )}
       </div>
@@ -315,6 +370,20 @@ const styles = {
     fontWeight: '500', 
     marginTop: '0.5rem', 
     border: '1px solid #fcd34d' 
+  },
+  assessmentItemPassed: { 
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.75rem 1rem', 
+    fontSize: '15px', 
+    color: '#15803d', 
+    cursor: 'pointer', 
+    borderRadius: '8px', 
+    background: '#dcfce7', 
+    fontWeight: '500', 
+    marginTop: '0.5rem', 
+    border: '1px solid #86efac' 
   },
   
   // Main Content

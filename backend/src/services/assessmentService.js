@@ -46,11 +46,16 @@ exports.startAttempt = async (assessmentId, candidateId) => {
  * Submit assessment and grade it
  */
 exports.submitAnswers = async (assessmentId, candidateId, answers) => {
+  console.log('[submitAnswers SERVICE] Called with:', { assessmentId, candidateId, answersCount: answers.length });
+  
   const assessment = await Assessment.findById(assessmentId);
   
   if (!assessment) {
     throw new Error('Assessment not found');
   }
+
+  console.log('[submitAnswers SERVICE] Assessment found:', assessment.title);
+  console.log('[submitAnswers SERVICE] Total questions:', assessment.questions.length);
 
   let obtainedScore = 0;
   const results = [];
@@ -73,7 +78,11 @@ exports.submitAnswers = async (assessmentId, candidateId, answers) => {
 
     if (question.type === 'mcq') {
       // For MCQ, compare the selected option with correct answer
-      isCorrect = answer.answer === question.correctAnswer;
+      // Handle type coercion: frontend might send string "0" while DB has number 0
+      const userAnswer = typeof answer.answer === 'string' ? parseInt(answer.answer, 10) : answer.answer;
+      const correctAnswer = typeof question.correctAnswer === 'string' ? parseInt(question.correctAnswer, 10) : question.correctAnswer;
+      console.log(userAnswer, correctAnswer);
+      isCorrect = userAnswer === correctAnswer;
     } else if (question.type === 'fill_in_the_blank') {
       // For fill in blank, case-insensitive comparison with trimming
       const userAnswer = (answer.answer || '').toString().trim().toLowerCase();

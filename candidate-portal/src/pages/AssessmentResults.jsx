@@ -21,6 +21,14 @@ export default function AssessmentResults() {
   const { score, passed } = results;
   const percentage = score?.percentage || 0;
 
+  // Debug: Log the results
+  console.log('[AssessmentResults] Full results:', JSON.stringify(results, null, 2));
+  console.log('[AssessmentResults] Passed:', passed);
+  console.log('[AssessmentResults] Score:', score);
+
+  // Determine Enrollment ID or Course ID from location state or handle fallback
+  const enrollmentId = location.state?.enrollmentId;
+
   return (
     <div style={styles.container}>
       <div style={styles.resultCard}>
@@ -53,13 +61,19 @@ export default function AssessmentResults() {
         </div>
 
         <div style={styles.actions}>
-          <button onClick={() => navigate('/my-learning')} style={styles.primaryBtn}>
-            Continue Learning
+          <button 
+             onClick={() => enrollmentId ? navigate(`/learning/${enrollmentId}`) : navigate('/my-learning')} 
+             style={styles.primaryBtn}
+          >
+            {enrollmentId ? 'Return to Course' : 'Continue Learning'}
           </button>
           
           {passed && results.isFinalExam && results.certificateId && (
             <button 
-              onClick={() => window.open(`http://localhost:5000/api/certificates/download/${results.certificateId}`, '_blank')}
+              onClick={() => {
+                const token = localStorage.getItem('token');
+                window.open(`http://localhost:5000/api/certificates/download/${results.certificateId}?token=${token}`, '_blank');
+              }}
               style={styles.certificateBtn}
             >
               🎓 Download Certificate
