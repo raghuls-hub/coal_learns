@@ -36,6 +36,8 @@ exports.startAttempt = async (assessmentId, candidateId) => {
     _id: assessment._id,
     title: assessment.title,
     description: assessment.description,
+    type: assessment.type,
+    settings: assessment.settings,
     passingScore: assessment.settings.passingPercentage,
     totalPoints: assessment.totalPoints,
     questions: questionsWithoutAnswers

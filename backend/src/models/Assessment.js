@@ -50,6 +50,13 @@ const AssessmentSchema = new mongoose.Schema({
       type: Boolean,
       default: true,
     },
+    // Proctoring Settings
+    proctoring: {
+      enabled: { type: Boolean, default: false },
+      browserLock: { type: Boolean, default: true }, // Enforce Chrome
+      fullScreen: { type: Boolean, default: true },
+      tabSwitchLimit: { type: Number, default: 2 },
+    },
   },
   
   questions: [{

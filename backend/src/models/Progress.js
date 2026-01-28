@@ -44,7 +44,12 @@ const ProgressSchema = new mongoose.Schema({
     score: { type: Number, default: 0 },
     passed: { type: Boolean, default: false },
     attempts: { type: Number, default: 0 },
-    lastAttemptDate: Date
+    lastAttemptDate: Date,
+    // Proctoring Data
+    warningsCount: { type: Number, default: 0 },
+    isLocked: { type: Boolean, default: false },
+    lockReason: String,
+    disqualified: { type: Boolean, default: false }
   }],
 
   // Latches

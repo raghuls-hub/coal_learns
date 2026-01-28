@@ -1,7 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const assessmentController = require('../controllers/assessmentController');
+const proctorController = require('../controllers/proctorController'); // Import proctor controller
 const auth = require('../middleware/auth');
+
+// Proctoring Routes
+router.get('/:id/proctor/status', auth, proctorController.getProctorStatus);
+router.post('/:id/proctor/warning', auth, proctorController.logWarning);
+router.post('/:id/proctor/lock', auth, proctorController.lockAssessment);
+router.post('/:id/proctor/unlock', auth, proctorController.unlockAssessment);
+
+// Existing Routes
 
 // Log all assessment route requests
 router.use((req, res, next) => {

@@ -98,10 +98,13 @@ export default function MyLearning() {
               
               <div style={styles.actions}>
                   <button
-                    onClick={() => navigate(`/learning/${enrollment._id}`)}
+                    onClick={() => {
+                        // Pass enrollmentId via query param for new tab persistence (if needed by assessment)
+                        window.open(`/learning/${enrollment._id}?enrollmentId=${enrollment._id}`, '_blank');
+                    }}
                     style={styles.continueBtn}
                   >
-                    {isCompleted ? 'Review Course' : 'Continue Learning →'}
+                    {isCompleted ? 'Review Course' : 'Continue Learning ↗'}
                   </button>
 
                   {isCompleted && (

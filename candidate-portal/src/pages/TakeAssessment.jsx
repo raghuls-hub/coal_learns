@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import apiClient from '../services/api';
+import ExamProctor from './ExamProctor';
+import AssessmentTimer from '../components/AssessmentTimer';
 
 export default function TakeAssessment() {
   const { assessmentId } = useParams();
@@ -34,10 +36,17 @@ export default function TakeAssessment() {
     setAnswers({ ...answers, [questionId]: answer });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleTimeUp = () => {
+    if (submitting) return; // Prevent double submit
+    console.log('[TakeAssessment] Time Up! Auto-submitting...');
+    handleSubmit(null, true);
+  };
+
+  const handleSubmit = async (e, isAutoSubmit = false) => {
+    if (e) e.preventDefault();
     
-    if (Object.keys(answers).length < questions.length) {
+    // Skip confirmation if auto-submit
+    if (!isAutoSubmit && Object.keys(answers).length < questions.length) {
       if (!confirm('You haven\'t answered all questions. Submit anyway?')) {
         return;
       }
@@ -47,22 +56,19 @@ export default function TakeAssessment() {
     try {
       const formattedAnswers = questions.map(q => ({
         questionId: q._id,
-        answer: answers[q._id] ?? ''  // Use ?? instead of || to preserve 0
+        answer: answers[q._id] ?? ''
       }));
 
-      console.log('[TakeAssessment] Submitting answers:', formattedAnswers);
-      console.log('[TakeAssessment] Raw answers state:', answers);
-
+      // Submit logic...
       const res = await apiClient.post(`/assessments/${assessmentId}/submit`, {
         answers: formattedAnswers,
-        enrollmentId: location.state?.enrollmentId // Explicitly pass context
+        enrollmentId: location.state?.enrollmentId
       });
 
-      // Navigate to results (store in state or pass via URL)
       navigate(`/assessment/${assessmentId}/results`, { 
           state: { 
               results: res.data.data,
-              enrollmentId: location.state?.enrollmentId // Pass it forward
+              enrollmentId: location.state?.enrollmentId 
           } 
       });
     } catch (error) {
@@ -75,64 +81,78 @@ export default function TakeAssessment() {
   if (!assessment) return <div style={styles.loading}>Assessment not found</div>;
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>{assessment.title}</h1>
-        <p style={styles.subtitle}>{questions.length} Questions</p>
-      </div>
+    <ExamProctor 
+      assessmentId={assessmentId} 
+      isProctoringEnabled={assessment?.settings?.proctoring?.enabled || assessment?.type === 'final_exam'}
+      onExit={() => navigate(-1)}
+    >
+      <div style={styles.container}>
+        {/* Render Timer if timeLimit exists */}
+        {assessment.settings?.timeLimit > 0 && (
+          <AssessmentTimer 
+            durationMinutes={assessment.settings.timeLimit} 
+            onTimeUp={handleTimeUp} 
+          />
+        )}
 
-      <form onSubmit={handleSubmit} style={styles.form}>
-        {questions.map((question, index) => (
-          <div key={question._id} style={styles.questionCard}>
-            <div style={styles.questionHeader}>
-              <span style={styles.questionNumber}>Question {index + 1}</span>
-              <span style={styles.questionType}>
-                {question.type === 'mcq' ? 'Multiple Choice' : 'Fill in the Blank'}
-              </span>
-            </div>
-            
-            <p style={styles.questionText}>{question.question}</p>
-
-            {question.type === 'mcq' && (
-              <div style={styles.optionsList}>
-                  {question.options.map((option, optIdx) => (
-                  <label key={optIdx} style={styles.optionLabel}>
-                    <input
-                      type="radio"
-                      name={`question-${question._id}`}
-                      value={optIdx}
-                      checked={answers[question._id] === optIdx}
-                      onChange={() => handleAnswerChange(question._id, optIdx)}
-                      style={styles.radio}
-                    />
-                    <span>{option}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {question.type === 'fill_in_the_blank' && (
-              <input
-                type="text"
-                value={answers[question._id] || ''}
-                onChange={(e) => handleAnswerChange(question._id, e.target.value)}
-                placeholder="Your answer"
-                style={styles.textInput}
-              />
-            )}
-          </div>
-        ))}
-
-        <div style={styles.actions}>
-          <button type="button" onClick={() => navigate(-1)} style={styles.cancelBtn}>
-            Cancel
-          </button>
-          <button type="submit" disabled={submitting} style={styles.submitBtn}>
-            {submitting ? 'Submitting...' : 'Submit Assessment'}
-          </button>
+        <div style={styles.header}>
+          <h1 style={styles.title}>{assessment.title}</h1>
+          <p style={styles.subtitle}>{questions.length} Questions</p>
         </div>
-      </form>
-    </div>
+
+        <form onSubmit={handleSubmit} style={styles.form}>
+          {questions.map((question, index) => (
+            <div key={question._id} style={styles.questionCard}>
+              <div style={styles.questionHeader}>
+                <span style={styles.questionNumber}>Question {index + 1}</span>
+                <span style={styles.questionType}>
+                  {question.type === 'mcq' ? 'Multiple Choice' : 'Fill in the Blank'}
+                </span>
+              </div>
+              
+              <p style={styles.questionText}>{question.question}</p>
+
+              {question.type === 'mcq' && (
+                <div style={styles.optionsList}>
+                    {question.options.map((option, optIdx) => (
+                    <label key={optIdx} style={styles.optionLabel}>
+                      <input
+                        type="radio"
+                        name={`question-${question._id}`}
+                        value={optIdx}
+                        checked={answers[question._id] === optIdx}
+                        onChange={() => handleAnswerChange(question._id, optIdx)}
+                        style={styles.radio}
+                      />
+                      <span>{option}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {question.type === 'fill_in_the_blank' && (
+                <input
+                  type="text"
+                  value={answers[question._id] || ''}
+                  onChange={(e) => handleAnswerChange(question._id, e.target.value)}
+                  placeholder="Your answer"
+                  style={styles.textInput}
+                />
+              )}
+            </div>
+          ))}
+
+          <div style={styles.actions}>
+            <button type="button" onClick={() => navigate(-1)} style={styles.cancelBtn}>
+              Cancel
+            </button>
+            <button type="submit" disabled={submitting} style={styles.submitBtn}>
+              {submitting ? 'Submitting...' : 'Submit Assessment'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </ExamProctor>
   );
 }
 

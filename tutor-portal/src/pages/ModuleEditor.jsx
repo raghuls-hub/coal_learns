@@ -27,7 +27,11 @@ export default function ModuleEditor() {
   const [assessmentData, setAssessmentData] = useState({
     title: '',
     type: 'module_assessment',
-    questions: []
+    questions: [],
+    settings: {
+      timeLimit: 0,
+      proctoring: { enabled: false }
+    }
   });
 
   useEffect(() => {
@@ -98,7 +102,12 @@ export default function ModuleEditor() {
   };
 
   const resetAssessmentForm = () => {
-    setAssessmentData({ title: '', type: 'module_assessment', questions: [] });
+    setAssessmentData({ 
+        title: '', 
+        type: 'module_assessment', 
+        questions: [],
+        settings: { timeLimit: 0, proctoring: { enabled: false } }
+    });
     setEditingAssessment(false);
     setShowAssessmentForm(false);
   };
@@ -118,7 +127,13 @@ export default function ModuleEditor() {
           };
         }
         return { ...q };
-      })
+      }),
+      settings: {
+        timeLimit: assessment.settings?.timeLimit || 0,
+        proctoring: { 
+            enabled: assessment.settings?.proctoring?.enabled || false 
+        }
+      }
     });
     setEditingAssessment(true);
     setShowAssessmentForm(true);
@@ -323,6 +338,40 @@ export default function ModuleEditor() {
                       required
                    />
                    
+                   <div style={styles.settingsRow}>
+                       <label style={{display: 'flex', alignItems: 'center', gap: 10, fontSize: 14}}>
+                           <input 
+                               type="checkbox"
+                               checked={assessmentData.settings?.proctoring?.enabled || false}
+                               onChange={e => setAssessmentData({
+                                   ...assessmentData,
+                                   settings: {
+                                       ...assessmentData.settings,
+                                       proctoring: { ...assessmentData.settings?.proctoring, enabled: e.target.checked }
+                                   }
+                               })}
+                           />
+                           Enable Strict Proctoring
+                       </label>
+                       
+                       <label style={{display: 'flex', alignItems: 'center', gap: 10, fontSize: 14}}>
+                           Time Limit (Minutes):
+                           <input 
+                               type="number"
+                               value={assessmentData.settings?.timeLimit || 0}
+                               onChange={e => setAssessmentData({
+                                   ...assessmentData,
+                                   settings: {
+                                       ...assessmentData.settings,
+                                       timeLimit: parseInt(e.target.value) || 0
+                                   }
+                               })}
+                               style={{...styles.inputSmall, width: 80}}
+                           />
+                           (0 = No Limit)
+                       </label>
+                   </div>
+                   
                    {assessmentData.questions.map((q, qIndex) => (
                      <div key={qIndex} style={styles.questionCard}>
                        <div style={styles.qHeader}>
@@ -503,4 +552,7 @@ const styles = {
   option: { padding: '0.5rem', fontSize: '14px', color: '#4a5568' },
   correctOption: { padding: '0.5rem', fontSize: '14px', color: '#48bb78', fontWeight: '600' },
   answerView: { padding: '0.75rem', background: '#f0fff4', borderRadius: '6px', color: '#276749', fontSize: '14px' },
+  settingsRow: { display: 'flex', gap: '2rem', padding: '1rem', background: '#f7fafc', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #e2e8f0' },
+  badgeProctor: { background: '#fed7d7', color: '#c53030', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' },
+  badgeTime: { background: '#bee3f8', color: '#2b6cb0', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' },
 };
