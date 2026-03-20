@@ -9,7 +9,7 @@ const { validate, schemas } = require('../middleware/validation');
 // Public routes (with optional identification)
 router.get('/', identify, courseController.getCourses);
 router.get('/:id', identify, courseController.getCourseById);
-router.get('/:id/final-assessment', identify, courseController.getFinalAssessment);
+
 
 // Protected routes - Course Handler ONLY for creation
 router.post(
@@ -67,6 +67,20 @@ router.post(
 
 router.get('/:id/modules/:moduleId', identify, courseController.getModule);
 
+router.put(
+  '/:id/modules/:moduleId',
+  auth,
+  requireRole('mentor', 'admin'),
+  courseController.updateModule
+);
+
+router.delete(
+  '/:id/modules/:moduleId',
+  auth,
+  requireRole('mentor', 'admin'),
+  courseController.deleteModule
+);
+
 router.post(
   '/:id/modules/:moduleId/content',
   auth,
@@ -74,19 +88,9 @@ router.post(
   courseController.addContent
 );
 
-router.post(
-  '/:id/modules/:moduleId/assessment',
-  auth,
-  requireRole('mentor', 'admin'),
-  courseController.addAssessment
-);
 
-router.post(
-  '/:id/assessment',
-  auth,
-  requireRole('mentor', 'admin'),
-  courseController.addCourseAssessment
-);
+
+
 
 // Content Routes
 router.put(
@@ -103,19 +107,6 @@ router.delete(
   courseController.deleteContent
 );
 
-// Assessment Routes
-router.put(
-  '/assessments/:assessmentId',
-  auth,
-  requireRole('mentor', 'admin'),
-  courseController.updateAssessment
-);
 
-router.delete(
-  '/assessments/:assessmentId',
-  auth,
-  requireRole('mentor', 'admin'),
-  courseController.deleteAssessment
-);
 
 module.exports = router;

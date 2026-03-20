@@ -49,7 +49,6 @@ exports.enrollInCourse = async (candidateId, courseId, paymentId = null) => {
     isCompleted: false,
     completionPercentage: 0,
     contentProgress: [],
-    assessmentAttempts: [],
   }));
 
   const progress = new Progress({
@@ -58,7 +57,6 @@ exports.enrollInCourse = async (candidateId, courseId, paymentId = null) => {
     course: courseId,
     moduleProgress,
     overallCompletion: 0,
-    finalExamUnlocked: false,
   });
 
   await progress.save();

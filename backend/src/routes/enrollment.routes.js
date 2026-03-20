@@ -26,6 +26,13 @@ router.get(
     enrollmentController.getMyEnrollments
 );
 
+// Get tutor enrollments (students enrolled in this tutor's courses)
+router.get(
+    '/tutor',
+    requireRole('mentor', 'admin'),
+    enrollmentController.getTutorEnrollments
+);
+
 // Get specific enrollment by ID
 router.get(
     '/:id',

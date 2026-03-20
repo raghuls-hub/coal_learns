@@ -9,7 +9,6 @@ const permissions = {
     'course:view', 'course:update', 'course:delete', 'course:publish',
     'module:create', 'module:update', 'module:delete', 'module:view',
     'content:create', 'content:update', 'content:delete', 'content:view',
-    'assessment:create', 'assessment:update', 'assessment:delete', 'assessment:view',
     'analytics:view_all',
     // Admin can manage users
     'user:create', 'user:view', 'user:update', 'user:delete',
@@ -22,14 +21,12 @@ const permissions = {
     'course:create', 'course:update', 'course:delete', 'course:view', 'course:publish',
     'module:create', 'module:update', 'module:delete', 'module:view',
     'content:create', 'content:update', 'content:delete', 'content:view',
-    'assessment:create', 'assessment:update', 'assessment:delete', 'assessment:view',
     'analytics:view_own_courses',
   ],
   
   candidate: [
     'course:view', 'course:enroll',
     'content:view',
-    'assessment:attempt',
     'certificate:view',
     'progress:view',
   ],

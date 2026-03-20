@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import apiClient from '../services/api';
+import { AiSparkIcon, CloseIcon, SendIcon } from './Icons';
 
 export default function AiAssistant({ courseId, moduleId }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -49,15 +50,17 @@ export default function AiAssistant({ courseId, moduleId }) {
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 style={styles.triggerBtn}
+                title={isOpen ? 'Close AI Assistant' : 'AI Learning Assistant'}
             >
-                {isOpen ? '❌' : '🤖 AI Help'}
+                {isOpen ? <CloseIcon size={18} color="white" /> : <AiSparkIcon size={18} color="white" />}
+                <span style={{ marginLeft: '6px' }}>{isOpen ? 'Close' : 'AI Help'}</span>
             </button>
 
             {/* Chat Window */}
             {isOpen && (
                 <div style={styles.chatWindow}>
                     <div style={styles.header}>
-                        <h3>AI Learning Assistant 🧠</h3>
+                        <h3>AI Learning Assistant</h3>
                         <span style={styles.status}>Online</span>
                     </div>
 
@@ -84,7 +87,9 @@ export default function AiAssistant({ courseId, moduleId }) {
                             style={styles.input}
                             disabled={loading}
                         />
-                        <button type="submit" disabled={loading} style={styles.sendBtn}>➤</button>
+                        <button type="submit" disabled={loading} style={styles.sendBtn} title="Send message">
+                            <SendIcon size={15} color="white" />
+                        </button>
                     </form>
                 </div>
             )}

@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/api';
+import { WrenchIcon, AlertCircleIcon } from '../components/Icons';
 
 export default function MyLearning() {
   const [enrollments, setEnrollments] = useState([]);
   const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(null);
+  const [deletedPopup, setDeletedPopup] = useState(false); // popup for deleted course
+  const [maintenancePopup, setMaintenancePopup] = useState(false); // popup for unpublished course
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,12 +32,13 @@ export default function MyLearning() {
   };
 
   const handleClaimCertificate = async (courseId) => {
+    if (!courseId) return;
     setClaiming(courseId);
     try {
       const res = await apiClient.post('/certificates/claim', { courseId });
       if (res.data.success) {
         alert('Certificate Claimed Successfully!');
-        fetchData(); // Refresh both lists
+        fetchData();
       }
     } catch (err) {
       console.error(err);
@@ -44,10 +48,56 @@ export default function MyLearning() {
     }
   };
 
+  const handleReviewCourse = (enrollment) => {
+    const isDeleted = !enrollment.course;
+    const isUnpublished = enrollment.course && !enrollment.course?.settings?.isPublished;
+
+    if (isDeleted) {
+      setDeletedPopup(true);
+      return;
+    }
+
+    if (isUnpublished) {
+      setMaintenancePopup(true);
+      return;
+    }
+    
+    // Always navigate in the same tab as requested
+    navigate(`/learning/${enrollment._id}?enrollmentId=${enrollment._id}`);
+  };
+
   if (loading) return <div style={styles.loading}>Loading your courses...</div>;
 
   return (
     <div style={styles.container}>
+      {/* Maintenance Popup */}
+      {maintenancePopup && (
+        <div style={styles.overlay} onClick={() => setMaintenancePopup(false)}>
+          <div style={styles.popup} onClick={e => e.stopPropagation()}>
+            <div style={styles.popupIcon}><WrenchIcon size={40} color='#6366f1' /></div>
+            <h3 style={styles.popupTitle}>Planned Maintenance</h3>
+            <p style={styles.popupMsg}>
+              The course is under maintenance. Please check back later.
+            </p>
+            <button onClick={() => setMaintenancePopup(false)} style={styles.popupBtn}>Got it</button>
+          </div>
+        </div>
+      )}
+
+      {/* Deleted Course Popup */}
+      {deletedPopup && (
+        <div style={styles.overlay} onClick={() => setDeletedPopup(false)}>
+          <div style={styles.popup} onClick={e => e.stopPropagation()}>
+            <div style={styles.popupIcon}><AlertCircleIcon size={40} color='#f87171' /></div>
+            <h3 style={styles.popupTitle}>Course No Longer Available</h3>
+            <p style={styles.popupMsg}>
+              This course has been removed by the mentor. Your progress and certificates are safely preserved.
+            </p>
+            <button onClick={() => setDeletedPopup(false)} style={styles.popupBtn}>Got it</button>
+          </div>
+        </div>
+      )}
+
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>My Learning</h1>
@@ -69,65 +119,96 @@ export default function MyLearning() {
       ) : (
         <div style={styles.grid}>
           {enrollments.map(enrollment => {
-             // Check if certificate exists for this course
-             const cert = certificates.find(c => 
-               c.course && enrollment.course && 
-               (c.course._id === enrollment.course._id || c.course === enrollment.course._id)
-             );
-             const isClaimed = !!cert;
+            // Prefer live course data, fall back to snapshot
+            const courseData = enrollment.course || enrollment.courseSnapshot || {};
+            const isDeleted = !enrollment.course;
+            const isUnpublished = enrollment.course && !enrollment.course?.settings?.isPublished;
+            const isCompleted = enrollment.progress === 100 || enrollment.status === 'completed';
 
-             const isCompleted = enrollment.progress === 100 || enrollment.status === 'completed';
-             
-             return (
-            <div key={enrollment._id} style={styles.card} className="card-hover">
-              <div style={styles.cardHeader}>
-                <h3 style={styles.courseTitle}>{enrollment.course.title}</h3>
-                <span style={{...styles.status, background: isCompleted ? '#C6F6D5' : '#EBF8FF', color: isCompleted ? '#22543D' : '#2C5282'}}>
-                    {enrollment.status}
-                </span>
-              </div>
-              
-              <p style={styles.courseDesc}>{enrollment.course.description}</p>
-              
-              <div style={styles.progressSection}>
-                <div style={styles.progressBar}>
-                  <div style={{...styles.progressFill, width: `${enrollment.progress || 0}%`}}></div>
+            // Match certificate by stored courseId or the enrollment id
+            const cert = certificates.find(c =>
+              (c.enrollment && c.enrollment === enrollment._id) ||
+              (c.course && enrollment.course && c.course === enrollment.course._id)
+            );
+            const isClaimed = !!cert;
+            const courseId = enrollment.course ? (enrollment.course._id || enrollment.course) : null;
+
+            return (
+              <div key={enrollment._id} style={styles.card}>
+                <div style={styles.cardHeader}>
+                  <h3 style={styles.courseTitle}>
+                    {courseData.title || 'Unknown Course'}
+                  </h3>
+                  <div style={styles.badges}>
+                    {isDeleted && (
+                      <span style={styles.archivedBadge}>Removed</span>
+                    )}
+                    <span style={{
+                      ...styles.statusBadge,
+                      background: isCompleted ? '#C6F6D5' : '#EBF8FF',
+                      color: isCompleted ? '#22543D' : '#2C5282'
+                    }}>
+                      {isCompleted ? 'Completed' : (enrollment.status || 'Active')}
+                    </span>
+                  </div>
                 </div>
-                <span style={styles.progressText}>{enrollment.progress || 0}% Complete</span>
-              </div>
-              
-              <div style={styles.actions}>
+
+                <p style={styles.courseDesc}>
+                  {courseData.description || 'No description available.'}
+                </p>
+
+                {courseData.instructorName && (
+                  <p style={styles.instructor}>Instructor: {courseData.instructorName}</p>
+                )}
+
+                <div style={styles.progressSection}>
+                  <div style={styles.progressBar}>
+                    <div style={{ ...styles.progressFill, width: `${enrollment.progress || 0}%` }} />
+                  </div>
+                  <span style={styles.progressText}>{enrollment.progress || 0}% Complete</span>
+                </div>
+
+                <div style={styles.actions}>
+                  {/* Always show Review/Continue button — popup if deleted */}
                   <button
-                    onClick={() => {
-                        // Pass enrollmentId via query param for new tab persistence (if needed by assessment)
-                        window.open(`/learning/${enrollment._id}?enrollmentId=${enrollment._id}`, '_blank');
+                    onClick={() => handleReviewCourse(enrollment)}
+                    style={{
+                      ...styles.continueBtn,
+                      opacity: (isDeleted || isUnpublished) ? 0.6 : 1,
+                      cursor: (isDeleted || isUnpublished) ? 'not-allowed' : 'pointer'
                     }}
-                    style={styles.continueBtn}
+                    title={isDeleted ? 'Course is deleted' : isUnpublished ? 'Course is under maintenance' : ''}
                   >
-                    {isCompleted ? 'Review Course' : 'Continue Learning ↗'}
+                    {isDeleted ? 'Course is deleted' : (isCompleted ? 'Review Course' : 'Continue Learning')}
                   </button>
 
                   {isCompleted && (
-                      !isClaimed ? (
-                        <button 
-                            onClick={() => handleClaimCertificate(enrollment.course._id)}
-                            disabled={claiming === enrollment.course._id}
-                            style={styles.claimBtn}
-                        >
-                            {claiming === enrollment.course._id ? 'Claiming...' : '🎓 Claim Certificate'}
-                        </button>
-                      ) : (
-                        <button 
-                            onClick={() => navigate(`/my-certificates`)} 
-                            style={styles.viewCertBtn}
-                        >
-                            📜 View Certificate
-                        </button>
-                      )
+                    isClaimed ? (
+                      <button
+                        onClick={() => navigate('/my-certificates')}
+                        style={styles.viewCertBtn}
+                      >
+                        View Certificate
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleClaimCertificate(courseId)}
+                        disabled={claiming === courseId || !courseId}
+                        style={{
+                          ...styles.claimBtn,
+                          opacity: (!courseId || claiming === courseId) ? 0.65 : 1,
+                          cursor: !courseId ? 'wait' : 'pointer',
+                        }}
+                        title={!courseId ? 'Claiming via saved course data...' : 'Claim your certificate'}
+                      >
+                        {claiming === courseId ? 'Claiming...' : 'Claim Certificate'}
+                      </button>
+                    )
                   )}
+                </div>
               </div>
-            </div>
-          )})}
+            );
+          })}
         </div>
       )}
     </div>
@@ -135,26 +216,36 @@ export default function MyLearning() {
 }
 
 const styles = {
-  container: { padding: '2rem', maxWidth: '1400px', margin: '0 auto', minHeight: '100vh', background: '#f7fafc' },
-  loading: { textAlign: 'center', padding: '3rem', fontSize: '18px' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' },
-  title: { fontSize: '32px', fontWeight: '700', color: '#1a202c' },
-  subtitle: { fontSize: '16px', color: '#718096', marginTop: '0.5rem' },
-  browseBtn: { padding: '0.75rem 1.5rem', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
-  empty: { textAlign: 'center', padding: '4rem 2rem', background: 'white', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' },
-  emptyBtn: { marginTop: '1.5rem', padding: '0.875rem 2rem', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '2rem' },
-  card: { background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column' },
-  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' },
-  courseTitle: { fontSize: '20px', fontWeight: '700', color: '#2d3748', flex: 1 },
-  status: { padding: '0.375rem 0.75rem', fontSize: '12px', fontWeight: '600', borderRadius: '6px', textTransform: 'capitalize' },
-  courseDesc: { fontSize: '14px', color: '#718096', marginBottom: '1.5rem', lineHeight: '1.6' },
-  progressSection: { marginBottom: '1.5rem' },
-  progressBar: { width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', marginBottom: '0.5rem' },
-  progressFill: { height: '100%', background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)', transition: 'width 0.3s' },
-  progressText: { fontSize: '13px', color: '#4a5568', fontWeight: '600' },
-  actions: { display: 'flex', gap: '1rem', marginTop: 'auto' },
-  continueBtn: { flex: 1, padding: '0.75rem', background: '#EDF2F7', color: '#2D3748', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
-  claimBtn: { flex: 1, padding: '0.75rem', background: 'linear-gradient(135deg, #48BB78 0%, #38A169 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
-  viewCertBtn: { flex: 1, padding: '0.75rem', background: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
+  container: { padding: '2rem', maxWidth: '1400px', margin: '0 auto', minHeight: '100vh', background: '#0f172a', fontFamily: "'Inter', sans-serif" },
+  loading: { textAlign: 'center', padding: '3rem', fontSize: '18px', color: '#64748b', background: '#0f172a' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid #1e293b' },
+  title: { fontSize: '32px', fontWeight: '800', color: '#f1f5f9', letterSpacing: '-0.02em' },
+  subtitle: { fontSize: '15px', color: '#64748b', marginTop: '0.4rem' },
+  browseBtn: { padding: '0.65rem 1.5rem', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(99,102,241,0.35)' },
+  empty: { textAlign: 'center', padding: '4rem 2rem', background: '#1e293b', borderRadius: '16px', border: '1px dashed #334155' },
+  emptyBtn: { marginTop: '1.5rem', padding: '0.875rem 2rem', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' },
+  card: { background: '#1e293b', padding: '1.5rem', borderRadius: '14px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 16px rgba(0,0,0,0.2)' },
+  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' },
+  courseTitle: { fontSize: '17px', fontWeight: '700', color: '#f1f5f9', flex: 1, lineHeight: '1.4' },
+  badges: { display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end', flexShrink: 0 },
+  archivedBadge: { fontSize: '11px', fontWeight: '700', color: '#f87171', background: 'rgba(239,68,68,0.12)', padding: '2px 8px', borderRadius: '99px', border: '1px solid rgba(239,68,68,0.25)' },
+  statusBadge: { fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '6px', textTransform: 'capitalize' },
+  courseDesc: { fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: 0 },
+  instructor: { fontSize: '13px', color: '#94a3b8', fontWeight: '500', margin: 0 },
+  progressSection: { display: 'flex', flexDirection: 'column', gap: '4px' },
+  progressBar: { width: '100%', height: '6px', background: '#0f172a', borderRadius: '3px', overflow: 'hidden' },
+  progressFill: { height: '100%', background: 'linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%)', transition: 'width 0.3s', borderRadius: '3px' },
+  progressText: { fontSize: '12px', color: '#64748b', fontWeight: '600' },
+  actions: { display: 'flex', gap: '0.75rem', marginTop: 'auto', paddingTop: '0.5rem' },
+  continueBtn: { flex: 1, padding: '0.65rem', background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
+  claimBtn: { flex: 1, padding: '0.65rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(16,185,129,0.3)' },
+  viewCertBtn: { flex: 1, padding: '0.65rem', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  popup: { background: '#1e293b', borderRadius: '16px', padding: '2.5rem', maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', border: '1px solid #334155' },
+  popupIcon: { fontSize: '48px', marginBottom: '1rem' },
+  popupTitle: { fontSize: '20px', fontWeight: '700', color: '#f1f5f9', marginBottom: '0.75rem' },
+  popupMsg: { fontSize: '15px', color: '#64748b', lineHeight: '1.6', marginBottom: '1.5rem' },
+  popupBtn: { padding: '0.75rem 2rem', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', fontSize: '15px', cursor: 'pointer' },
 };
+

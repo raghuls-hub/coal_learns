@@ -13,10 +13,11 @@ const authRoutes = require('./routes/auth.routes');
 const courseRoutes = require('./routes/course.routes');
 const enrollmentRoutes = require('./routes/enrollment.routes');
 const progressRoutes = require('./routes/progress.routes');
-const assessmentRoutes = require('./routes/assessment.routes');
+
 const userRoutes = require('./routes/user.routes');
 const aiRoutes = require('./routes/ai.routes');
 const certificateRoutes = require('./routes/certificate.routes');
+const uploadRoutes = require('./routes/upload.routes');
 
 const app = express();
 
@@ -24,7 +25,10 @@ const app = express();
 connectDB();
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false, // Disable for easier development with cross-origin resources
+}));
 
 // CORS configuration
 app.use(cors({
@@ -80,10 +84,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/progress', progressRoutes);
-app.use('/api/assessments', assessmentRoutes);
+
 app.use('/api/users', userRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/certificates', certificateRoutes);
+app.use('/api/upload', uploadRoutes);
 // Additional routes will be added as we build them
 
 // 404 handler

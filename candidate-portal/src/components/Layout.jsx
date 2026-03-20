@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import {
+    DashboardIcon,
+    CertificateIcon,
+    LearningIcon,
+    ExploreIcon,
+    LogoutIcon,
+} from './Icons';
 
 export default function Layout() {
     const { user, logout } = useAuth();
@@ -22,14 +29,21 @@ export default function Layout() {
                 <nav style={styles.nav}>
                     <NavItem
                         to="/dashboard"
-                        icon="📊"
+                        icon={<DashboardIcon size={18} />}
                         label="Dashboard"
                         isActive={location.pathname === '/dashboard'}
                         navigate={navigate}
                     />
                     <NavItem
+                        to="/my-learning"
+                        icon={<LearningIcon size={18} />}
+                        label="My Learning"
+                        isActive={location.pathname === '/my-learning'}
+                        navigate={navigate}
+                    />
+                    <NavItem
                         to="/certificates"
-                        icon="🎓"
+                        icon={<CertificateIcon size={18} />}
                         label="Certificates"
                         isActive={location.pathname === '/certificates'}
                         navigate={navigate}
@@ -48,7 +62,8 @@ export default function Layout() {
                         </div>
                     </div>
                     <button onClick={logout} style={styles.logoutBtn}>
-                        <span>🚪</span> Logout
+                        <LogoutIcon size={16} />
+                        <span>Logout</span>
                     </button>
                 </div>
             </aside>
@@ -70,7 +85,7 @@ const NavItem = ({ to, icon, label, isActive, navigate }) => (
         }}
     >
         <span style={styles.navIcon}>{icon}</span>
-        {label}
+        <span>{label}</span>
     </div>
 );
 

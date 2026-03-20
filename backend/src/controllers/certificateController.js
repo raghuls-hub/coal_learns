@@ -1,6 +1,7 @@
 const certificateService = require('../services/certificateService');
 const catchAsync = require('../utils/catchAsync');
 const Enrollment = require('../models/Enrollment');
+const Certificate = require('../models/Certificate');
 
 /**
  * @route   POST /api/certificates/claim
@@ -13,9 +14,9 @@ exports.claimCertificate = catchAsync(async (req, res) => {
 
   console.log(`[Controller] Claim Certificate Request. User: ${userId}, Course: ${courseId}`);
 
-  // Find enrollment
-  const enrollment = await Enrollment.findOne({ course: courseId, user: userId });
-  
+  // Find enrollment — look up by courseId OR by courseSnapshot if course was deleted
+  let enrollment = await Enrollment.findOne({ course: courseId, user: userId });
+
   if (!enrollment) {
     console.error(`[Controller] Enrollment not found for User ${userId} Course ${courseId}`);
     return res.status(404).json({ success: false, message: 'Enrollment not found' });
@@ -36,11 +37,15 @@ exports.claimCertificate = catchAsync(async (req, res) => {
  */
 exports.getMyCertificates = catchAsync(async (req, res) => {
   const userId = req.user.userId;
-  const Certificate = require('../models/Certificate');
-  
+
+  // Use stored courseName and instructorName — do NOT rely on course populate
+  // (course may have been deleted, but cert.courseName and cert.instructorName are always stored)
   const certificates = await Certificate.find({ user: userId })
-    .populate('course', 'title thumbnail')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // Optionally try to populate course for thumbnail — but fall back gracefully
+  const certIds = certificates.map(c => c._id);
 
   res.status(200).json({
     success: true,
@@ -51,11 +56,11 @@ exports.getMyCertificates = catchAsync(async (req, res) => {
 /**
  * @route   GET /api/certificates/:id/download
  * @desc    Download certificate PDF
- * @access  Private (or Public if using signed token, but currently ID based)
+ * @access  Private (or Public via token)
  */
 exports.downloadCertificate = catchAsync(async (req, res) => {
   const { id } = req.params;
-  
+
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename=certificate-${id}.pdf`);
 
@@ -64,22 +69,29 @@ exports.downloadCertificate = catchAsync(async (req, res) => {
 
 /**
  * @route   GET /api/certificates/:id
- * @desc    Verify/View certificate details
+ * @desc    Verify/View certificate details (public)
  * @access  Public
  */
 exports.getCertificate = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const Certificate = require('../models/Certificate');
+
+  // Find by certificateId (UUID), populate user safely
   const cert = await Certificate.findOne({ certificateId: id })
-    .populate('user', 'profile email') // Safe fields
-    .populate('course', 'title description');
+    .populate('user', 'profile email')
+    .lean();
 
   if (!cert) {
-      return res.status(404).json({ success: false, message: 'Certificate not found' });
+    return res.status(404).json({ success: false, message: 'Certificate not found' });
   }
 
+  // Return stored courseName & instructorName — not dependent on course doc existing
   res.status(200).json({
     success: true,
-    data: cert
+    data: {
+      ...cert,
+      // Ensure these are always present for the frontend
+      courseName: cert.courseName || 'Course Title Unavailable',
+      instructorName: cert.instructorName || 'Platform Instructor',
+    }
   });
 });

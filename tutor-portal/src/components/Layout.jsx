@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  MenuIcon,
+  DashboardIcon,
+  CoursesIcon,
+  CreateIcon,
+  LogoutIcon,
+  SettingsIcon,
+} from './Icons';
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -9,9 +17,10 @@ export default function Layout({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const menuItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-    { path: '/my-courses', label: 'My Courses', icon: '📚' },
-    { path: '/create-course', label: 'Create Course', icon: '✏️' },
+    { path: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
+    { path: '/my-courses', label: 'My Courses', icon: CoursesIcon },
+    { path: '/create-course', label: 'Create Course', icon: CreateIcon },
+    { path: '/settings', label: 'Settings', icon: SettingsIcon },
   ];
 
   const handleLogout = () => {
@@ -25,25 +34,34 @@ export default function Layout({ children }) {
       <aside style={{ ...styles.sidebar, width: isSidebarOpen ? '260px' : '80px' }}>
         <div style={styles.logoArea}>
           <div style={styles.logoText}>
-            {isSidebarOpen ? '👨‍🏫 MentorPortal' : '🎓'}
+            {isSidebarOpen ? 'MentorPortal' : 'MP'}
           </div>
         </div>
 
         <nav style={styles.nav}>
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
+            const IconComp = item.icon;
             return (
               <div
                 key={item.path}
                 onClick={() => navigate(item.path)}
                 style={{
                   ...styles.navItem,
-                  backgroundColor: isActive ? '#eef2ff' : 'transparent',
-                  color: isActive ? '#4f46e5' : '#64748b',
-                  borderRight: isActive ? '3px solid #4f46e5' : '3px solid transparent',
+                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                  color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  border: isActive ? '1px solid rgba(99, 102, 241, 0.2)' : '1px solid transparent',
+                  boxShadow: isActive ? 'var(--accent-glow)' : 'none',
                 }}
               >
-                <span style={styles.icon}>{item.icon}</span>
+                <span style={{
+                  ...styles.icon,
+                  color: isActive ? 'var(--accent-primary)' : 'var(--text-muted)',
+                  borderColor: isActive ? 'var(--accent-primary)' : 'var(--border-dim)',
+                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.05)' : 'rgba(255, 255, 255, 0.02)',
+                }}>
+                  <IconComp size={16} color={isActive ? '#6366f1' : '#64748b'} />
+                </span>
                 {isSidebarOpen && <span style={styles.label}>{item.label}</span>}
               </div>
             );
@@ -55,7 +73,9 @@ export default function Layout({ children }) {
             onClick={handleLogout}
             style={styles.logoutBtn}
           >
-            <span style={styles.icon}>🚪</span>
+            <span style={{ ...styles.icon, color: 'var(--error)', borderColor: 'rgba(239,68,68,0.3)' }}>
+              <LogoutIcon size={16} color='#ef4444' />
+            </span>
             {isSidebarOpen && <span>Logout</span>}
           </div>
         </div>
@@ -68,8 +88,9 @@ export default function Layout({ children }) {
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               style={styles.toggleBtn}
+              title={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
             >
-              ☰
+              <MenuIcon size={18} color='var(--text-secondary)' />
             </button>
             <h2 style={styles.pageTitle}>
               {menuItems.find(m => m.path === location.pathname)?.label || 'Portal'}
@@ -96,79 +117,92 @@ const styles = {
     display: 'flex',
     minHeight: '100vh',
     fontFamily: "'Inter', sans-serif",
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'var(--bg-base)',
   },
   sidebar: {
-    backgroundColor: '#ffffff',
-    borderRight: '1px solid #e2e8f0',
+    backgroundColor: 'var(--bg-sidebar)',
+    borderRight: '1px solid var(--border-dim)',
     display: 'flex',
     flexDirection: 'column',
-    transition: 'width 0.3s ease',
+    transition: 'width-0.3s-ease',
     position: 'sticky',
     top: 0,
     height: '100vh',
     zIndex: 10,
     overflowX: 'hidden',
+    boxShadow: '4px 0 24px rgba(0,0,0,0.2)',
   },
   logoArea: {
     padding: '1.5rem',
-    borderBottom: '1px solid #e2e8f0',
+    borderBottom: '1px solid var(--border-dim)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    height: '70px',
+    height: '80px',
   },
   logoText: {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    color: '#4f46e5',
+    fontSize: '22px',
+    fontWeight: '900',
+    background: 'var(--accent-gradient)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
     whiteSpace: 'nowrap',
+    letterSpacing: '-0.02em',
   },
   nav: {
     flex: 1,
-    padding: '1rem 0',
+    padding: '1.5rem 0.75rem',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.5rem',
+    gap: '0.4rem',
   },
   navItem: {
     display: 'flex',
     alignItems: 'center',
-    padding: '0.75rem 1.5rem',
+    padding: '0.85rem 1.25rem',
     cursor: 'pointer',
-    transition: 'all 0.2s',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
     fontSize: '15px',
-    fontWeight: '500',
+    fontWeight: '600',
     whiteSpace: 'nowrap',
+    borderRadius: '12px',
+    margin: '0 0.5rem',
   },
   icon: {
-    fontSize: '20px',
+    fontSize: '11px',
     marginRight: '12px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '24px',
+    width: '28px',
+    height: '28px',
+    fontWeight: '800',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    border: '1px solid var(--border-dim)',
+    transition: 'all 0.2s',
   },
   label: {
     opacity: 1,
     transition: 'opacity 0.2s',
   },
   footer: {
-    padding: '1rem',
-    borderTop: '1px solid #e2e8f0',
+    padding: '1.25rem',
+    borderTop: '1px solid var(--border-dim)',
   },
   logoutBtn: {
     display: 'flex',
     alignItems: 'center',
-    padding: '0.75rem',
-    color: '#ef4444',
+    padding: '0.85rem',
+    color: 'var(--error)',
     cursor: 'pointer',
-    borderRadius: '8px',
-    transition: 'background 0.2s',
+    borderRadius: '12px',
+    transition: 'all 0.2s',
     whiteSpace: 'nowrap',
-    ':hover': {
-      backgroundColor: '#fef2f2',
-    }
+    border: '1px solid rgba(239, 68, 68, 0.1)',
+    background: 'rgba(239, 68, 68, 0.02)',
+    fontSize: '14px',
+    fontWeight: '700',
   },
   main: {
     flex: 1,
@@ -177,59 +211,72 @@ const styles = {
     overflow: 'hidden',
   },
   header: {
-    height: '70px',
-    backgroundColor: '#ffffff',
-    borderBottom: '1px solid #e2e8f0',
+    height: '80px',
+    backgroundColor: 'var(--bg-header)',
+    borderBottom: '1px solid var(--border-dim)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0 2rem',
+    padding: '0 2.5rem',
     position: 'sticky',
     top: 0,
     zIndex: 5,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
   },
   headerLeft: {
     display: 'flex',
     alignItems: 'center',
-    gap: '1rem',
+    gap: '1.25rem',
   },
   toggleBtn: {
-    background: 'none',
-    border: 'none',
-    fontSize: '20px',
+    background: 'var(--bg-base)',
+    border: '1px solid var(--border-dim)',
+    width: '36px',
+    height: '36px',
+    borderRadius: '10px',
+    fontSize: '18px',
     cursor: 'pointer',
-    color: '#64748b',
+    color: 'var(--text-secondary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pageTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#1e293b',
+    fontSize: '20px',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
     margin: 0,
+    letterSpacing: '-0.01em',
   },
   userInfo: {
     display: 'flex',
     alignItems: 'center',
-    gap: '1rem',
+    gap: '1.25rem',
+    background: 'rgba(255, 255, 255, 0.03)',
+    padding: '0.5rem 1rem',
+    borderRadius: '14px',
+    border: '1px solid var(--border-dim)',
   },
   welcome: {
-    color: '#64748b',
+    color: 'var(--text-secondary)',
     fontSize: '14px',
   },
   avatar: {
     width: '36px',
     height: '36px',
-    borderRadius: '50%',
-    backgroundColor: '#4f46e5',
+    borderRadius: '10px',
+    background: 'var(--accent-gradient)',
     color: 'white',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontWeight: 'bold',
-    fontSize: '14px',
+    fontWeight: '800',
+    fontSize: '15px',
+    boxShadow: 'var(--accent-glow)',
   },
   content: {
     flex: 1,
     overflowY: 'auto',
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'var(--bg-base)',
   },
 };

@@ -37,7 +37,6 @@ exports.createModule = async (courseId, moduleData, userId, userRole) => {
 exports.getModulesByCourse = async (courseId) => {
   const modules = await Module.find({ course: courseId })
     .populate('content')
-    .populate('assessment')
     .sort({ order: 1 });
 
   return modules;
@@ -49,8 +48,7 @@ exports.getModulesByCourse = async (courseId) => {
 exports.getModuleById = async (moduleId) => {
   const module = await Module.findById(moduleId)
     .populate('course')
-    .populate('content')
-    .populate('assessment');
+    .populate('content');
 
   if (!module) {
     throw new Error('Module not found');

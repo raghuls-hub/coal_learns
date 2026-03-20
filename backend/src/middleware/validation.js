@@ -82,29 +82,6 @@ const schemas = {
     }).optional(),
   }),
 
-  // Assessment creation
-  createAssessment: Joi.object({
-    type: Joi.string().valid('mini_test', 'module_assessment', 'final_exam').required(),
-    title: Joi.string().required(),
-    settings: Joi.object({
-      passingPercentage: Joi.number().min(0).max(100).default(60),
-      timeLimit: Joi.number().min(0).optional(),
-      attemptsPerDay: Joi.number().min(1).optional(),
-      showAnswers: Joi.boolean().default(false),
-      shuffleQuestions: Joi.boolean().default(true),
-      shuffleOptions: Joi.boolean().default(true),
-    }).optional(),
-    questions: Joi.array().items(
-      Joi.object({
-        type: Joi.string().valid('mcq', 'multiple_select', 'true_false', 'short_answer').required(),
-        question: Joi.string().required(),
-        options: Joi.array().items(Joi.string()).optional(),
-        correctAnswer: Joi.alternatives().try(Joi.string(), Joi.array().items(Joi.string())).required(),
-        points: Joi.number().min(0).default(1),
-        explanation: Joi.string().optional(),
-      })
-    ).min(1).required(),
-  }),
 };
 
 module.exports = {

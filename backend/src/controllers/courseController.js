@@ -151,24 +151,6 @@ exports.deleteCourse = async (req, res, next) => {
  */
 exports.togglePublish = async (req, res, next) => {
   try {
-    // If publishing, check mandatory requirements
-    const course = await Course.findById(req.params.id);
-    if (!course.settings.isPublished) { // We are about to publish
-       // Check for Final Assessment
-       const Assessment = require('../models/Assessment');
-       const finalExam = await Assessment.findOne({ 
-         course: req.params.id, 
-         type: 'final_exam' 
-       });
-
-       if (!finalExam) {
-         return res.status(400).json({
-           success: false,
-           error: 'Cannot publish course: Mandatory Final Assessment is missing.'
-         });
-       }
-    }
-
     const updatedCourse = await courseService.togglePublishCourse(req.params.id, req.user.userId, req.user.role);
 
     res.status(200).json({
@@ -268,6 +250,34 @@ exports.getModule = async (req, res, next) => {
 };
 
 /**
+ * @route   PUT /api/courses/:id/modules/:moduleId
+ * @desc    Update a module
+ * @access  Private
+ */
+exports.updateModule = async (req, res, next) => {
+  try {
+    const module = await courseService.updateModule(req.params.moduleId, req.body);
+    res.status(200).json({ success: true, message: 'Module updated', data: module });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   DELETE /api/courses/:id/modules/:moduleId
+ * @desc    Delete a module
+ * @access  Private
+ */
+exports.deleteModule = async (req, res, next) => {
+  try {
+    const result = await courseService.deleteModule(req.params.id, req.params.moduleId);
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @route   POST /api/courses/:id/modules/:moduleId/content
  * @desc    Add content
  * @access  Private
@@ -281,33 +291,8 @@ exports.addContent = async (req, res, next) => {
   }
 };
 
-/**
- * @route   POST /api/courses/:id/modules/:moduleId/assessment
- * @desc    Add assessment
- * @access  Private
- */
-exports.addAssessment = async (req, res, next) => {
-  try {
-    const module = await courseService.addAssessmentToModule(req.params.moduleId, req.body);
-    res.status(201).json({ success: true, message: 'Assessment created', data: module });
-  } catch (error) {
-    next(error);
-  }
-};
+// Assessment methods removed (Assessment feature disabled)
 
-/**
- * @route   POST /api/courses/:id/assessment
- * @desc    Add course-level assessment (Final Exam)
- * @access  Private
- */
-exports.addCourseAssessment = async (req, res, next) => {
-  try {
-    const assessment = await courseService.addAssessmentToCourse(req.params.id, req.body);
-    res.status(201).json({ success: true, message: 'Final Assessment created', data: assessment });
-  } catch (error) {
-    next(error);
-  }
-};
 
 /**
  * @route   PUT /api/content/:contentId
@@ -324,22 +309,6 @@ exports.updateContent = async (req, res, next) => {
 };
 
 
-/**
- * @route   GET /api/courses/:id/final-assessment
- * @desc    Get final assessment for course
- * @access  Private
- */
-exports.getFinalAssessment = async (req, res, next) => {
-  try {
-    const Assessment = require('../models/Assessment');
-    const assessment = await Assessment.findOne({ course: req.params.id, type: 'final_exam' });
-    
-    // It's okay if null
-    res.status(200).json({ success: true, data: assessment });
-  } catch (error) {
-    next(error);
-  }
-};
 
 /**
  * @route   DELETE /api/content/:contentId
@@ -355,30 +324,3 @@ exports.deleteContent = async (req, res, next) => {
   }
 };
 
-/**
- * @route   PUT /api/courses/assessments/:assessmentId
- * @desc    Update assessment
- * @access  Private
- */
-exports.updateAssessment = async (req, res, next) => {
-  try {
-    const assessment = await courseService.updateAssessment(req.params.assessmentId, req.body);
-    res.status(200).json({ success: true, message: 'Assessment updated', data: assessment });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @route   DELETE /api/courses/assessments/:assessmentId
- * @desc    Delete assessment
- * @access  Private
- */
-exports.deleteAssessment = async (req, res, next) => {
-  try {
-    const result = await courseService.deleteAssessment(req.params.assessmentId);
-    res.status(200).json({ success: true, data: result });
-  } catch (error) {
-    next(error);
-  }
-};

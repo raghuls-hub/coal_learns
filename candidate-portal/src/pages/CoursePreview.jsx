@@ -71,7 +71,7 @@ export default function CoursePreview() {
 
   return (
     <div style={styles.container}>
-      <button onClick={() => navigate('/catalog')} style={styles.backBtn}>← Back to Catalog</button>
+      <button onClick={() => navigate('/catalog')} style={styles.backBtn}>Back to Catalog</button>
       
       <div style={styles.header}>
         <div>
@@ -93,7 +93,7 @@ export default function CoursePreview() {
               onClick={() => navigate(`/learning/${enrollment._id}`)}
               style={styles.enrolledBtn}
             >
-              Continue Learning →
+              Continue Learning
             </button>
           ) : (
             <button 
@@ -121,7 +121,6 @@ export default function CoursePreview() {
               )}
               <div style={styles.moduleInfo}>
                 <span>{module.content?.length || 0} chapters</span>
-                {module.assessment && <span>• 1 assessment</span>}
               </div>
             </div>
           ))}
@@ -132,25 +131,166 @@ export default function CoursePreview() {
 }
 
 const styles = {
-  container: { padding: '2rem', maxWidth: '1200px', margin: '0 auto', minHeight: '100vh', background: '#f7fafc' },
-  loading: { textAlign: 'center', padding: '3rem', fontSize: '18px' },
-  backBtn: { marginBottom: '2rem', padding: '0.5rem 1rem', background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
-  header: { display: 'flex', gap: '3rem', marginBottom: '3rem', background: 'white', padding: '2rem', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' },
-  title: { fontSize: '32px', fontWeight: '700', color: '#1a202c', marginBottom: '1rem' },
-  description: { fontSize: '16px', color: '#4a5568', lineHeight: '1.6', marginBottom: '1.5rem' },
-  meta: { display: 'flex', gap: '0.75rem', flexWrap: 'wrap' },
-  badge: { padding: '0.5rem 1rem', background: '#edf2f7', color: '#4a5568', fontSize: '13px', fontWeight: '600', borderRadius: '6px', textTransform: 'capitalize' },
-  actionCard: { minWidth: '250px', display: 'flex', flexDirection: 'column', gap: '1rem' },
-  price: { fontSize: '36px', fontWeight: '700', color: '#667eea', textAlign: 'center' },
-  enrollBtn: { padding: '1rem', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' },
-  enrolledBtn: { padding: '1rem', background: '#48bb78', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' },
-  modulesSection: { marginTop: '2rem' },
-  sectionTitle: { fontSize: '24px', fontWeight: '700', color: '#1a202c', marginBottom: '1.5rem' },
-  modulesList: { display: 'flex', flexDirection: 'column', gap: '1rem' },
-  moduleCard: { background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  moduleHeader: { marginBottom: '0.75rem' },
-  moduleNumber: { fontSize: '12px', color: '#667eea', fontWeight: '700', textTransform: 'uppercase', display: 'block', marginBottom: '0.5rem' },
-  moduleTitle: { fontSize: '18px', fontWeight: '600', color: '#2d3748' },
-  moduleDesc: { fontSize: '14px', color: '#718096', marginBottom: '1rem', lineHeight: '1.6' },
-  moduleInfo: { fontSize: '13px', color: '#a0aec0' },
+  container: { 
+    padding: '2rem', 
+    maxWidth: '1200px', 
+    margin: '0 auto', 
+    minHeight: '100vh', 
+    background: '#0f172a', // Deep Navy
+    color: '#f8fafc' 
+  },
+  loading: { 
+    textAlign: 'center', 
+    padding: '3rem', 
+    fontSize: '18px',
+    color: '#94a3b8'
+  },
+  backBtn: { 
+    marginBottom: '2rem', 
+    padding: '0.5rem 1rem', 
+    background: 'none', 
+    border: 'none', 
+    color: '#6366f1', // Indigo
+    cursor: 'pointer', 
+    fontSize: '14px', 
+    fontWeight: '600',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    transition: 'all 0.2s'
+  },
+  header: { 
+    display: 'flex', 
+    gap: '3rem', 
+    marginBottom: '3rem', 
+    background: 'rgba(30, 41, 59, 0.7)', // Slate Glassmorphism
+    backdropFilter: 'blur(10px)',
+    padding: '2.5rem', 
+    borderRadius: '16px', 
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)' 
+  },
+  title: { 
+    fontSize: '36px', 
+    fontWeight: '800', 
+    color: '#ffffff', 
+    marginBottom: '1rem',
+    letterSpacing: '-0.025em'
+  },
+  description: { 
+    fontSize: '17px', 
+    color: '#94a3b8', 
+    lineHeight: '1.7', 
+    marginBottom: '1.5rem',
+    maxWidth: '800px'
+  },
+  meta: { 
+    display: 'flex', 
+    gap: '0.75rem', 
+    flexWrap: 'wrap' 
+  },
+  badge: { 
+    padding: '0.5rem 1rem', 
+    background: 'rgba(99, 102, 241, 0.15)', 
+    color: '#818cf8', 
+    fontSize: '13px', 
+    fontWeight: '600', 
+    borderRadius: '8px', 
+    textTransform: 'capitalize',
+    border: '1px solid rgba(99, 102, 241, 0.2)'
+  },
+  actionCard: { 
+    minWidth: '280px', 
+    display: 'flex', 
+    flexDirection: 'column', 
+    gap: '1.5rem',
+    padding: '1.5rem',
+    background: 'rgba(15, 23, 42, 0.5)',
+    borderRadius: '12px',
+    border: '1px solid rgba(255, 255, 255, 0.05)',
+    justifyContent: 'center'
+  },
+  price: { 
+    fontSize: '38px', 
+    fontWeight: '800', 
+    color: '#f59e0b', // Gold
+    textAlign: 'center' 
+  },
+  enrollBtn: { 
+    padding: '1rem', 
+    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', 
+    color: 'white', 
+    border: 'none', 
+    borderRadius: '10px', 
+    fontSize: '16px', 
+    fontWeight: '700', 
+    cursor: 'pointer',
+    boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)',
+    transition: 'transform 0.2s'
+  },
+  enrolledBtn: { 
+    padding: '1rem', 
+    background: 'rgba(16, 185, 129, 0.15)', 
+    color: '#10b981', 
+    border: '1px solid rgba(16, 185, 129, 0.3)', 
+    borderRadius: '10px', 
+    fontSize: '16px', 
+    fontWeight: '700', 
+    cursor: 'pointer' 
+  },
+  modulesSection: { 
+    marginTop: '2rem' 
+  },
+  sectionTitle: { 
+    fontSize: '26px', 
+    fontWeight: '700', 
+    color: '#ffffff', 
+    marginBottom: '2rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem'
+  },
+  modulesList: { 
+    display: 'flex', 
+    flexDirection: 'column', 
+    gap: '1.25rem' 
+  },
+  moduleCard: { 
+    background: '#1e293b', 
+    padding: '1.75rem', 
+    borderRadius: '14px', 
+    border: '1px solid rgba(255, 255, 255, 0.05)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    transition: 'all 0.3s'
+  },
+  moduleHeader: { 
+    marginBottom: '1rem' 
+  },
+  moduleNumber: { 
+    fontSize: '12px', 
+    color: '#f59e0b', 
+    fontWeight: '800', 
+    textTransform: 'uppercase', 
+    display: 'block', 
+    marginBottom: '0.5rem',
+    letterSpacing: '0.1em'
+  },
+  moduleTitle: { 
+    fontSize: '20px', 
+    fontWeight: '600', 
+    color: '#f1f5f9' 
+  },
+  moduleDesc: { 
+    fontSize: '15px', 
+    color: '#94a3b8', 
+    marginBottom: '1.25rem', 
+    lineHeight: '1.6' 
+  },
+  moduleInfo: { 
+    fontSize: '13px', 
+    color: '#64748b',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem'
+  },
 };

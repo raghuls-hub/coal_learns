@@ -42,10 +42,7 @@ const ModuleSchema = new mongoose.Schema({
     },
   },
   
-  assessment: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Assessment',
-  },
+
   
   duration: {
     type: Number, // Estimated duration in minutes

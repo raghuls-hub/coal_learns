@@ -35,34 +35,14 @@ const ProgressSchema = new mongoose.Schema({
     isCompleted: { type: Boolean, default: false }
   }],
 
-  // Track assessment results
-  assessmentScores: [{
-    assessment: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Assessment'
-    },
-    score: { type: Number, default: 0 },
-    passed: { type: Boolean, default: false },
-    attempts: { type: Number, default: 0 },
-    lastAttemptDate: Date,
-    // Proctoring Data
-    warningsCount: { type: Number, default: 0 },
-    isLocked: { type: Boolean, default: false },
-    lockReason: String,
-    disqualified: { type: Boolean, default: false }
-  }],
 
-  // Latches
+  
+  // Overall course completion flag (set when all modules done)
   courseCompleted: {
     type: Boolean,
     default: false
   },
-  
-  finalExamUnlocked: {
-    type: Boolean,
-    default: false
-  },
-  
+
   certificateClaimed: {
     type: Boolean,
     default: false

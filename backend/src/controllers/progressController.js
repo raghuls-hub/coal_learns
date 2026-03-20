@@ -14,8 +14,6 @@ exports.getProgress = catchAsync(async (req, res) => {
 
   console.log('[getProgress] Returning progress:', {
     enrollmentId,
-    assessmentScoresCount: progress?.assessmentScores?.length || 0,
-    finalExamUnlocked: progress?.finalExamUnlocked
   });
 
   res.status(200).json({

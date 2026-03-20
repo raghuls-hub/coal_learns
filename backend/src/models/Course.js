@@ -48,12 +48,6 @@ const CourseSchema = new mongoose.Schema({
       type: String,
       default: 'USD',
     },
-    commissionRate: {
-      type: Number,
-      default: 20,
-      min: 0,
-      max: 100,
-    },
   },
   
   settings: {
@@ -69,6 +63,10 @@ const CourseSchema = new mongoose.Schema({
       max: 100,
     },
     isPublished: {
+      type: Boolean,
+      default: false,
+    },
+    isArchived: {
       type: Boolean,
       default: false,
     },
@@ -92,6 +90,18 @@ const CourseSchema = new mongoose.Schema({
   },
 }, {
   timestamps: true,
+});
+
+// Auto-archive when unpublished
+CourseSchema.pre('save', function(next) {
+  if (this.isModified('settings.isPublished')) {
+    if (!this.settings.isPublished) {
+      this.settings.isArchived = true;
+    } else {
+      this.settings.isArchived = false;
+    }
+  }
+  next();
 });
 
 // Indexes

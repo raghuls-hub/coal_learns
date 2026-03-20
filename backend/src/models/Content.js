@@ -9,7 +9,7 @@ const ContentSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: {
-      values: ['video', 'pdf', 'text', 'link', 'hands_on_notes'],
+      values: ['video', 'pdf', 'text', 'link', 'hands_on_notes', 'video_upload', 'notes_upload'],
       message: '{VALUE} is not a valid content type',
     },
     required: [true, 'Content type is required'],

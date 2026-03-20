@@ -36,6 +36,21 @@ export const AuthProvider = ({ children }) => {
     return userData;
   };
 
+  const register = async (userData) => {
+    // Force role to candidate for portal registrations
+    const response = await apiClient.post('/auth/register', { 
+      ...userData, 
+      role: 'candidate' 
+    });
+    const { accessToken, user: registeredUser } = response.data.data;
+    
+    localStorage.setItem('token', accessToken);
+    localStorage.setItem('user', JSON.stringify(registeredUser));
+    setUser(registeredUser);
+    
+    return registeredUser;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -46,6 +61,7 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     login,
+    register,
     logout,
     isAuthenticated: !!user,
   };

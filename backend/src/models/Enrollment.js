@@ -9,7 +9,6 @@ const EnrollmentSchema = new mongoose.Schema({
   course: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course',
-    required: true
   },
   paymentStatus: {
     type: String,
@@ -45,7 +44,25 @@ const EnrollmentSchema = new mongoose.Schema({
   lastAccessed: {
     type: Date,
     default: Date.now
-  }
+  },
+  // [NEW] Persistent Course Data (Snapshot — set on completion or before deletion)
+  courseSnapshot: {
+    title: String,
+    description: String,
+    thumbnail: String,
+    category: String,
+    level: String,
+    instructorName: String,
+    totalModules: Number,
+    totalDuration: Number,
+    deletedAt: Date,
+    completedAt: Date,
+  },
+  status: {
+    type: String,
+    enum: ['active', 'completed', 'cancelled'],
+    default: 'active'
+  },
 }, {
   timestamps: true
 });

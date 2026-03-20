@@ -4,14 +4,14 @@ import Navigation from './components/Navigation';
 
 // Pages
 import Login from './pages/Login';
+import Register from './pages/Register';
 import CourseCatalog from './pages/CourseCatalog';
 import CoursePreview from './pages/CoursePreview';
 import MyLearning from './pages/MyLearning';
 import LearningInterface from './pages/LearningInterface';
-import TakeAssessment from './pages/TakeAssessment';
-import AssessmentResults from './pages/AssessmentResults';
 import CertificateVerify from './pages/CertificateVerify';
 import MyCertificates from './pages/MyCertificates';
+
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -41,6 +41,7 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/verify/:certificateId" element={<CertificateVerify />} />
           
           {/* Protected Routes */}
@@ -79,18 +80,8 @@ function App() {
               <LearningInterface />
             </ProtectedRoute>
           } />
-          
-          <Route path="/assessment/:assessmentId/take" element={
-            <ProtectedRoute>
-              <TakeAssessment />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/assessment/:assessmentId/results" element={
-            <ProtectedRoute>
-              <AssessmentResults />
-            </ProtectedRoute>
-          } />
+
+
         </Routes>
       </Router>
     </AuthProvider>

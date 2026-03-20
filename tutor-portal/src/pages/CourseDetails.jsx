@@ -13,6 +13,8 @@ export default function CourseDetails() {
   const [loading, setLoading] = useState(true);
   const [showModuleForm, setShowModuleForm] = useState(false);
   const [newModuleTitle, setNewModuleTitle] = useState('');
+  const [editingModule, setEditingModule] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
 
   useEffect(() => {
     fetchCourseDetails();
@@ -62,8 +64,36 @@ export default function CourseDetails() {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (!course) return <div>Course not found</div>;
+  const handleEditModule = async (moduleId, e) => {
+    e.stopPropagation();
+    try {
+      await apiClient.put(`/api/courses/${courseId}/modules/${moduleId}`, {
+        title: editTitle
+      });
+      setEditingModule(null);
+      setEditTitle('');
+      fetchCourseDetails();
+    } catch (error) {
+      console.error('Failed to edit module:', error);
+      alert('Failed to update module');
+    }
+  };
+
+  const handleDeleteModule = async (moduleId, e) => {
+    e.stopPropagation();
+    if (window.confirm('Are you sure you want to delete this module and all its content?')) {
+      try {
+        await apiClient.delete(`/api/courses/${courseId}/modules/${moduleId}`);
+        fetchCourseDetails();
+      } catch (error) {
+        console.error('Failed to delete module:', error);
+        alert('Failed to delete module');
+      }
+    }
+  };
+
+  if (loading) return <div style={styles.loading}>Loading...</div>;
+  if (!course) return <div style={styles.loading}>Course not found</div>;
 
   return (
     <div style={styles.container}>
@@ -75,7 +105,7 @@ export default function CourseDetails() {
           <p style={styles.subtitle}>{course.category} • {course.level}</p>
         </div>
         <button onClick={() => setShowModuleForm(true)} style={styles.createBtn}>
-          + Add Module
+          Add Module
         </button>
       </div>
 
@@ -106,61 +136,207 @@ export default function CourseDetails() {
           </div>
         ) : (
           modules.map((module, index) => (
-            <div
-              key={module._id}
-              style={styles.moduleCard}
-              onClick={() => navigate(`/course/${courseId}/module/${module._id}`)}
-            >
-              <div style={styles.moduleInfo}>
-                <span style={styles.moduleOrder}>Module {index + 1}</span>
-                <h3 style={styles.moduleTitle}>{module.title}</h3>
-                <span style={styles.itemCount}>{module.content?.length || 0} items</span>
-              </div>
-              <span style={styles.arrow}>→</span>
+            <div key={module._id} style={styles.moduleWrapper}>
+              {editingModule === module._id ? (
+                <div style={styles.editForm}>
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    style={styles.editInput}
+                  />
+                  <div style={styles.editActions}>
+                    <button onClick={(e) => handleEditModule(module._id, e)} style={styles.saveBtn}>Save</button>
+                    <button onClick={() => setEditingModule(null)} style={styles.cancelLink}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={styles.moduleCard}
+                  onClick={() => navigate(`/course/${courseId}/module/${module._id}`)}
+                >
+                  <div style={styles.moduleInfo}>
+                    <span style={styles.moduleOrder}>Module {index + 1}</span>
+                    <h3 style={styles.moduleTitle}>{module.title}</h3>
+                    <span style={styles.itemCount}>{module.content?.length || 0} items</span>
+                  </div>
+                  <div style={styles.moduleActions}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setEditingModule(module._id); setEditTitle(module.title); }}
+                      style={styles.iconBtn}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteModule(module._id, e)}
+                      style={{...styles.iconBtn, color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)'}}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))
         )}
       </div>
 
-      <div style={{marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid #e2e8f0'}}>
-        <h2 style={{fontSize: '20px', fontWeight: '700', color: '#1a202c', marginBottom: '1rem'}}>Final Assessment</h2>
-        <div 
-          style={{...styles.moduleCard, borderLeft: '4px solid #f59e0b', background: '#fffbeb'}}
-          onClick={() => navigate(`/course/${courseId}/final-exam`)}
-        >
-          <div style={styles.moduleInfo}>
-             <span style={{...styles.moduleOrder, color: '#d97706'}}>MANDATORY</span>
-             <h3 style={styles.moduleTitle}>Final Course Exam</h3>
-             <span style={styles.itemCount}>Required for Certificate</span>
-          </div>
-          <button style={{padding: '0.5rem 1rem', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600'}}>
-             Manage Exam
-          </button>
-        </div>
-      </div>
+
     </div>
   );
 }
 
 const styles = {
-  container: { padding: '2rem', maxWidth: '1000px', margin: '0 auto', minHeight: '100%', fontFamily: "'Inter', sans-serif" },
-  backBtn: { marginBottom: '1rem', background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', background: 'white', padding: '2rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
-  title: { fontSize: '24px', fontWeight: 'bold', color: '#1a202c', marginBottom: '0.5rem' },
-  subtitle: { color: '#718096', fontSize: '14px' },
-  createBtn: { padding: '0.75rem 1.5rem', background: '#48bb78', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' },
-  modulesList: { display: 'flex', flexDirection: 'column', gap: '1rem' },
-  moduleCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', cursor: 'pointer', transition: 'transform 0.2s', borderLeft: '4px solid #667eea' },
-  moduleInfo: { display: 'flex', flexDirection: 'column', gap: '0.25rem' },
-  moduleOrder: { fontSize: '12px', color: '#667eea', fontWeight: '600', textTransform: 'uppercase' },
-  moduleTitle: { fontSize: '18px', fontWeight: '600', color: '#2d3748' },
-  itemCount: { fontSize: '13px', color: '#a0aec0' },
-  emptyState: { textAlign: 'center', padding: '3rem', color: '#718096', background: '#f7fafc', borderRadius: '8px' },
-  formCard: { background: 'white', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0' },
-  form: { display: 'flex', gap: '1rem', marginTop: '1rem' },
-  input: { flex: 1, padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '6px' },
-  formActions: { display: 'flex', gap: '0.5rem' },
-  submitBtn: { padding: '0.75rem 1.5rem', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' },
-  cancelBtn: { padding: '0.75rem 1.5rem', background: '#e2e8f0', color: '#4a5568', border: 'none', borderRadius: '6px', cursor: 'pointer' },
-  arrow: { fontSize: '20px', color: '#cbd5e0' },
+  container: { padding: '3rem', maxWidth: '1000px', margin: '0 auto', minHeight: '100%' },
+  loading: { textAlign: 'center', padding: '5rem', color: 'var(--text-secondary)', fontSize: '16px' },
+  header: { 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: '3rem', 
+    background: 'rgba(30, 41, 59, 0.4)', 
+    padding: '2.5rem', 
+    borderRadius: '24px', 
+    border: '1px solid var(--border-dim)',
+    backdropFilter: 'blur(10px)',
+  },
+  title: { fontSize: '32px', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '0.5rem', letterSpacing: '-0.025em' },
+  subtitle: { color: 'var(--text-secondary)', fontSize: '15px', fontWeight: '600' },
+  createBtn: { 
+    padding: '1rem 2rem', 
+    background: 'var(--accent-gradient)', 
+    color: 'white', 
+    border: 'none', 
+    borderRadius: '12px', 
+    fontSize: '15px', 
+    fontWeight: '800', 
+    cursor: 'pointer', 
+    boxShadow: '0 8px 16px rgba(99, 102, 241, 0.3)',
+    transition: 'all 0.2s',
+  },
+  modulesList: { display: 'flex', flexDirection: 'column', gap: '1.5rem' },
+  moduleCard: { 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    background: 'var(--bg-surface)', 
+    padding: '2rem', 
+    borderRadius: '20px', 
+    border: '1px solid var(--border-dim)', 
+    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', 
+    cursor: 'pointer', 
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+    borderLeft: '4px solid var(--accent-primary)' 
+  },
+  moduleInfo: { display: 'flex', flexDirection: 'column', gap: '0.6rem' },
+  moduleOrder: { fontSize: '11px', color: 'var(--accent-primary)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em' },
+  moduleTitle: { fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.01em' },
+  itemCount: { fontSize: '14px', color: 'var(--text-muted)', fontWeight: '500' },
+  emptyState: { 
+    textAlign: 'center', 
+    padding: '5rem 2rem', 
+    color: 'var(--text-secondary)', 
+    background: 'var(--bg-surface)', 
+    borderRadius: '24px', 
+    border: '1px solid var(--border-dim)' 
+  },
+  formCard: { 
+    background: 'var(--bg-surface)', 
+    padding: '2.5rem', 
+    borderRadius: '20px', 
+    marginBottom: '3rem', 
+    border: '1px solid var(--border-dim)', 
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)' 
+  },
+  form: { display: 'flex', gap: '1.25rem', marginTop: '2rem' },
+  input: { 
+    flex: 1, 
+    padding: '0.9rem 1.125rem', 
+    background: 'var(--bg-base)', 
+    border: '1px solid var(--border-dim)', 
+    borderRadius: '12px', 
+    color: 'var(--text-primary)', 
+    outline: 'none',
+    transition: 'border-color 0.2s',
+  },
+  formActions: { display: 'flex', gap: '1rem' },
+  submitBtn: { 
+    padding: '0.9rem 1.75rem', 
+    background: 'var(--accent-gradient)', 
+    color: 'white', 
+    border: 'none', 
+    borderRadius: '12px', 
+    fontWeight: '800', 
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  cancelBtn: { 
+    padding: '0.9rem 1.75rem', 
+    background: 'transparent', 
+    color: 'var(--text-secondary)', 
+    border: '1px solid var(--border-dim)', 
+    borderRadius: '12px', 
+    fontWeight: '700', 
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  moduleWrapper: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  moduleActions: {
+    display: 'flex',
+    gap: '0.5rem',
+  },
+  iconBtn: {
+    padding: '0.5rem 1rem',
+    background: 'transparent',
+    color: 'var(--text-secondary)',
+    border: '1px solid var(--border-dim)',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '600',
+    transition: 'all 0.2s',
+  },
+  editForm: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+    padding: '1.5rem',
+    background: 'var(--bg-surface)',
+    borderRadius: '20px',
+    border: '1px solid var(--border-dim)',
+  },
+  editInput: {
+    flex: 1,
+    padding: '0.75rem 1rem',
+    background: 'var(--bg-base)',
+    border: '1px solid var(--accent-primary)',
+    borderRadius: '10px',
+    color: 'var(--text-primary)',
+    outline: 'none',
+  },
+  editActions: {
+    display: 'flex',
+    gap: '0.5rem',
+    alignItems: 'center',
+  },
+  saveBtn: {
+    padding: '0.5rem 1rem',
+    background: 'var(--accent-primary)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '600',
+  },
+  cancelLink: {
+    padding: '0.5rem 1rem',
+    background: 'transparent',
+    color: 'var(--text-secondary)',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: '600',
+  }
 };

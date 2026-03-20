@@ -28,13 +28,32 @@ exports.createEnrollment = catchAsync(async (req, res) => {
     // In a real app, we would initiate a Stripe session here.
     // For now, we assume immediate success.
 
+    // Populate Mock Payment with Snapshot
+    const courseHandlerName = await (async () => {
+        if (!course.courseHandler) return 'Unknown Instructor';
+        const User = require('../models/User');
+        const handler = await User.findById(course.courseHandler);
+        return handler ? `${handler.profile.firstName} ${handler.profile.lastName}` : 'Unknown Instructor';
+    })();
+
     const enrollment = await Enrollment.create({
         user: req.user.userId,
         course: courseId,
         amountPaid: course.pricing.amount,
         currency: course.pricing.currency,
         paymentStatus: 'completed', // Auto-complete for mock
-        transactionId: `MOCK_${Date.now()}_${Math.random().toString(36).substring(7)}`
+        transactionId: `MOCK_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        // [NEW] Persistent Snapshot
+        courseSnapshot: {
+            title: course.title,
+            description: course.description,
+            thumbnail: course.thumbnail,
+            category: course.category,
+            level: course.level,
+            instructorName: courseHandlerName,
+            totalModules: course.modules?.length || 0,
+            totalDuration: 0 // TODO: Calculate if available
+        }
     });
 
     // Update course stats
@@ -54,8 +73,29 @@ exports.getMyEnrollments = catchAsync(async (req, res) => {
     const enrollments = await Enrollment.find({ user: req.user.userId, paymentStatus: 'completed' })
         .populate({
             path: 'course',
-            select: 'title description thumbnail category level pricing courseHandler runTime'
+            select: 'title description thumbnail category level pricing courseHandler runTime settings'
         })
+        .sort('-enrolledAt');
+
+    res.status(200).json({
+        success: true,
+        count: enrollments.length,
+        data: enrollments
+    });
+});
+
+// @desc    Get enrollments for courses managed by the tutor
+// @route   GET /api/enrollments/tutor
+// @access  Private (Mentor)
+exports.getTutorEnrollments = catchAsync(async (req, res) => {
+    // Find courses managed by this tutor
+    const myCourses = await Course.find({ courseHandler: req.user.userId }).select('_id title');
+    const courseIds = myCourses.map(c => c._id);
+
+    // Find enrollments for these courses
+    const enrollments = await Enrollment.find({ course: { $in: courseIds }, paymentStatus: 'completed' })
+        .populate('user', 'profile email')
+        .populate('course', 'title settings pricing stats')
         .sort('-enrolledAt');
 
     res.status(200).json({
@@ -98,7 +138,7 @@ exports.getEnrollmentById = catchAsync(async (req, res) => {
         populate: {
             path: 'modules',
             populate: {
-                path: 'content assessment'
+                path: 'content'
             }
         }
     });

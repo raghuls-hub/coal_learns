@@ -2,7 +2,7 @@ const Progress = require('../models/Progress');
 const Enrollment = require('../models/Enrollment');
 const Course = require('../models/Course');
 const Module = require('../models/Module');
-const Assessment = require('../models/Assessment');
+
 
 /**
  * Initialize Progress for a new Enrollment
@@ -30,7 +30,7 @@ exports.initializeProgress = async (enrollmentId, userId, courseId) => {
       course: courseId,
       completedContent: [],
       moduleProgress,
-      assessmentScores: [],
+
       courseCompleted: false,
       certificateClaimed: false
     });
@@ -53,7 +53,7 @@ exports.getProgress = async (enrollmentId, userId) => {
   let progress = await Progress.findOne({ enrollment: enrollmentId })
     .populate('completedContent')
     .populate('moduleProgress.module')
-    .populate('assessmentScores.assessment');
+
   
   if (!progress) {
     // Auto-fix if missing
@@ -84,70 +84,19 @@ exports.markContentCompleted = async (enrollmentId, userId, contentId) => {
   }
 
   // Check if this completes the module
-  await this.checkModuleCompletion(progress, contentId);
+  await exports.checkModuleCompletion(progress, contentId);
   
-  // Check if Final Exam should unlock
-  await this.checkFinalExamUnlock(progress);
-  
-  return progress;
-};
 
-/**
- * Update Assessment Result
- */
-exports.updateAssessmentResult = async (enrollmentId, userId, assessmentId, score, passed) => {
-  const progress = await Progress.findOne({ enrollment: enrollmentId, user: userId });
-  if (!progress) throw new Error('Progress not found');
-
-  // Find existing score entry
-  const existingIndex = progress.assessmentScores.findIndex(a => a.assessment.toString() === assessmentId.toString());
-
-  if (existingIndex > -1) {
-    const entry = progress.assessmentScores[existingIndex];
-    // Monotonic: If already passed, keep passed. Update score only if higher.
-    if (!entry.passed && passed) {
-        entry.passed = true;
-    }
-    // Update score if higher
-    if (score > entry.score) {
-        entry.score = score;
-    }
-    entry.attempts += 1;
-    entry.lastAttemptDate = Date.now();
-  } else {
-    progress.assessmentScores.push({
-      assessment: assessmentId,
-      score: score,
-      passed: passed,
-      attempts: 1,
-      lastAttemptDate: Date.now()
-    });
-  }
-
-  await progress.save();
-
-  // Update enrollment progress percentage
-  await this.updateEnrollmentProgress(progress);
-
-  // Check Logic
-  await this.checkCourseCompletion(progress, assessmentId);
   
   return progress;
 };
+
+
 
 /**
  * Internal: Check if Module is Completed
  */
 exports.checkModuleCompletion = async (progress, contentId) => {
-    // We need to find which module controls this content or assessment.
-    // Ideally we look up the Module, but we can also iterate the course structure.
-    // For efficiency, let's look up the module of the content.
-    // Actually, usually the frontend passes ModuleID, but our API spec was contentId only.
-    // Let's rely on Course structure.
-    
-    // Easier: Check ALL modules? Or just the current one?
-    // Let's re-eval all modules to be safe/consistent.
-    
     const course = await Course.findById(progress.course).populate('modules');
     let hasChanges = false;
 
@@ -159,47 +108,31 @@ exports.checkModuleCompletion = async (progress, contentId) => {
         
         // Find progress entry
         const mp = progress.moduleProgress.find(m => m.module.toString() === mod._id.toString());
-        if (!mp) continue; // Should exist
+        if (!mp) continue; 
 
-        // Debug Log
-        // console.log(`Checking Module ${mod.title}: Current Status=${mp.isCompleted}`);
-
-        // if (!mp.isCompleted) { // Force re-check even if true? No, we use monotonic helper now.
-        // Actually, let's allow re-check to confirm it SHOULD be true.
-            
-            // Check content
-            const contentDebug = mod.content.map(cId => ({id: cId, done: completedSet.has(cId.toString())}));
-            const allContentDone = mod.content.every(cId => completedSet.has(cId.toString()));
-            
-            // Check assessment (if Module Assessment exists)
-            let assessmentDone = true;
-            if (mod.assessment) {
-                const scoreEntry = progress.assessmentScores.find(a => a.assessment.toString() === mod.assessment.toString());
-                assessmentDone = scoreEntry && scoreEntry.passed;
-                // console.log(`Module Assessment ${mod.assessment}: Passed=${assessmentDone}`);
-            }
-
-            if (allContentDone && assessmentDone) {
-                 if (!mp.isCompleted) {
-                     console.log(`[Service] Module ${mod._id} Completed! unlocking next.`);
-                     mp.isCompleted = true;
-                     hasChanges = true;
-                     
-                     // Unlock NEXT module
-                     const nextModIndex = i + 1;
-                     if (nextModIndex < progress.moduleProgress.length) {
-                         progress.moduleProgress[nextModIndex].isUnlocked = true;
-                     }
+        // Check content
+        const allContentDone = mod.content.every(cId => completedSet.has(cId.toString()));
+        
+        if (allContentDone) {
+             if (!mp.isCompleted) {
+                 console.log(`[Service] Module ${mod._id} Completed! unlocking next.`);
+                 mp.isCompleted = true;
+                 hasChanges = true;
+                 
+                 // Unlock NEXT module
+                 const nextModIndex = i + 1;
+                 if (nextModIndex < progress.moduleProgress.length) {
+                     progress.moduleProgress[nextModIndex].isUnlocked = true;
                  }
-            } else {
-                // Log WHY it's not done if we think it might be
-                // if (allContentDone) console.log(`[Service] Content done but Assessment not passed for Module ${mod._id}`);
-                // if (!allContentDone) console.log(`[Service] Content incomplete for Module ${mod._id}`, contentDebug.filter(x => !x.done));
-            }
-        // }
+             }
+        }
     }
 
-    if (hasChanges) await progress.save();
+    if (hasChanges) {
+        await progress.save();
+        // Check course completion whenever a module is completed
+        await exports.checkCourseCompletion(progress);
+    }
 };
 
 /**
@@ -213,32 +146,65 @@ function monotonicSetCompleted(moduleProgress, isCompleted) {
 /**
  * Internal: Check Course Completion (Final Exam)
  */
-exports.checkCourseCompletion = async (progress, assessmentId) => {
-    // Check if this assessment was the final exam
-    const assessment = await Assessment.findById(assessmentId);
-    if (assessment && assessment.type === 'final_exam') {
-        const entry = progress.assessmentScores.find(a => a.assessment.toString() === assessmentId.toString());
-        if (entry && entry.passed) {
-            progress.courseCompleted = true;
-            await progress.save();
-            
-            // Also update Enrollment status
-            await Enrollment.findByIdAndUpdate(progress.enrollment, { 
-                status: 'completed',
-                progress: 100
-             });
-        }
-    }
+/**
+ * Internal: Check Course Completion
+ * Triggered when all modules are completed
+ */
+exports.checkCourseCompletion = async (progress) => {
+    const course = await Course.findById(progress.course).populate('modules');
+    if (!course) return;
 
-    // Also trigger module check in case this was a module assessment
-    if (assessment && assessment.type === 'module_assessment') {
-        // finding the module is hard without back-ref, but we can do a global check
-        // checkModuleCompletion does global check
-        await this.checkModuleCompletion(progress, null);
-    }
+    // Check if ALL modules are completed
+    // We can check the boolean flags in progress.moduleProgress
+    // But since we just updated them in checkModuleCompletion, we might depend on that.
+    // Let's verify against the course module count.
     
-    // Check Final Exam unlock status after any assessment
-    await this.checkFinalExamUnlock(progress);
+    // Check if every module in the course has a corresponding completed entry in progress
+    const allModulesCompleted = course.modules.every(mod => {
+        const mp = progress.moduleProgress.find(m => m.module.toString() === mod._id.toString());
+        return mp && mp.isCompleted;
+    });
+
+    if (allModulesCompleted && !progress.courseCompleted) {
+        progress.courseCompleted = true;
+        await progress.save();
+        
+        // Refetch course for fresh snapshot
+        // (Populate courseHandler as before)
+        const courseWithHandler = await Course.findById(progress.course).populate('courseHandler');
+        let instructorName = 'Unknown Instructor';
+        if (courseWithHandler.courseHandler) {
+             const User = require('../models/User');
+             if (courseWithHandler.courseHandler.profile) {
+                 instructorName = `${courseWithHandler.courseHandler.profile.firstName} ${courseWithHandler.courseHandler.profile.lastName}`;
+             } else {
+                 const handler = await User.findById(courseWithHandler.courseHandler);
+                 if (handler) instructorName = `${handler.profile.firstName} ${handler.profile.lastName}`;
+             }
+        }
+
+        // Also update Enrollment status AND Snapshot
+        await Enrollment.findByIdAndUpdate(progress.enrollment, { 
+            status: 'completed',
+            progress: 100,
+            // [NEW] Persist final snapshot on completion
+            courseSnapshot: {
+                title: courseWithHandler.title,
+                description: courseWithHandler.description,
+                thumbnail: courseWithHandler.thumbnail,
+                category: courseWithHandler.category,
+                level: courseWithHandler.level,
+                instructorName: instructorName,
+                totalModules: courseWithHandler.modules?.length || 0,
+                completedAt: new Date()
+            }
+         });
+         
+         console.log('[checkCourseCompletion] Course Completed and Snapshot saved.');
+    } else {
+         // Update enrollment progress even if not complete
+         await exports.updateEnrollmentProgress(progress);
+    }
 };
 
 /**
@@ -246,46 +212,7 @@ exports.checkCourseCompletion = async (progress, assessmentId) => {
  * SIMPLIFIED REQUIREMENT:
  * - All mini-assessments (module_assessment) passed
  */
-exports.checkFinalExamUnlock = async (progress) => {
-    try {
-        const course = await Course.findById(progress.course).populate('modules');
-        if (!course) {
-            console.error('[checkFinalExamUnlock] Course not found');
-            return false;
-        }
 
-        console.log('[checkFinalExamUnlock] Checking unlock for enrollment:', progress.enrollment);
-        
-        // Check each module for its assessment
-        for (const module of course.modules) {
-            // Check if module has assessment
-            if (module.assessment) {
-                const scoreEntry = progress.assessmentScores.find(
-                    s => s.assessment.toString() === module.assessment.toString()
-                );
-                
-                if (!scoreEntry || !scoreEntry.passed) {
-                    console.log(`[checkFinalExamUnlock] Module ${module.title} assessment NOT passed`);
-                    progress.finalExamUnlocked = false;
-                    await progress.save();
-                    return false;
-                }
-                
-                console.log(`[checkFinalExamUnlock] Module ${module.title} assessment PASSED ✓`);
-            }
-        }
-        
-        // All assessments passed - unlock Final Exam
-        console.log('[checkFinalExamUnlock] All assessments passed - UNLOCKING Final Exam');
-        progress.finalExamUnlocked = true;
-        await progress.save();
-        return true;
-        
-    } catch (err) {
-        console.error('[checkFinalExamUnlock] Error:', err);
-        return false;
-    }
-};
 
 /**
  * Check if Certificate is eligible
@@ -293,37 +220,7 @@ exports.checkFinalExamUnlock = async (progress) => {
  * 1. All mini-assessments passed
  * 2. Final exam passed
  */
-exports.checkCertificateEligibility = async (progress) => {
-    try {
-        const course = await Course.findById(progress.course).populate('modules');
-        if (!course) return false;
-        
-        // Check all module assessments are passed
-        for (const module of course.modules) {
-            if (module.assessment) {
-                const scoreEntry = progress.assessmentScores.find(
-                    s => s.assessment.toString() === module.assessment.toString()
-                );
-                
-                if (!scoreEntry || !scoreEntry.passed) return false;
-            }
-        }
-        
-        // Check if final exam is passed
-        for (const score of progress.assessmentScores) {
-            const assessment = await Assessment.findById(score.assessment);
-            if (assessment && assessment.type === 'final_exam' && score.passed) {
-                return true;
-            }
-        }
-        
-        return false;
-        
-    } catch (err) {
-        console.error('[checkCertificateEligibility] Error:', err);
-        return false;
-    }
-};
+
 
 /**
  * Update Enrollment Progress Percentage
@@ -334,31 +231,30 @@ exports.updateEnrollmentProgress = async (progress) => {
         const course = await Course.findById(progress.course).populate('modules');
         if (!course) return;
 
-        // Count total assessments (module assessments only - final exam counts for completion, not progress)
-        let totalAssessments = 0;
-        let passedAssessments = 0;
+        // Calculate based on CONTENT completion
+        let totalContent = 0;
+        let completedContentCount = 0;
 
-        // Count module assessments
-        for (const module of course.modules) {
-            if (module.assessment) {
-                totalAssessments++;
-                const scoreEntry = progress.assessmentScores.find(
-                    s => s.assessment.toString() === module.assessment.toString() && s.passed
-                );
-                if (scoreEntry) passedAssessments++;
+        // Flatten content
+        const allContentIds = [];
+        course.modules.forEach(mod => {
+            if (mod.content) {
+                allContentIds.push(...mod.content);
             }
-        }
+        });
+        
+        totalContent = allContentIds.length;
+        if (totalContent === 0) return;
 
-        // If no assessments at all, default to user progress metric
-        if (totalAssessments === 0) {
-            console.log('[updateEnrollmentProgress] No assessments found, skipping update');
-            return;
-        }
+        // Count how many are in completedContent
+        completedContentCount = allContentIds.filter(cId => 
+            progress.completedContent.includes(cId)
+        ).length;
 
         // Calculate percentage
-        const percentage = Math.round((passedAssessments / totalAssessments) * 100);
+        const percentage = Math.round((completedContentCount / totalContent) * 100);
 
-        console.log(`[updateEnrollmentProgress] ${passedAssessments}/${totalAssessments} assessments passed = ${percentage}%`);
+        console.log(`[updateEnrollmentProgress] ${completedContentCount}/${totalContent} content items completed = ${percentage}%`);
 
         // Update enrollment
         await Enrollment.findByIdAndUpdate(progress.enrollment, {

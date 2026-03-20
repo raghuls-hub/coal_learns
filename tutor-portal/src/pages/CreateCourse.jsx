@@ -9,7 +9,7 @@ export default function CreateCourse() {
     description: '',
     category: '',
     level: 'beginner',
-    pricing: { amount: 0, currency: 'USD', commissionRate: 20 }
+    pricing: { amount: 0, currency: 'INR' }
   });
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +18,7 @@ export default function CreateCourse() {
     setLoading(true);
 
     try {
-      const response = await apiClient.post('/api/courses', formData);
+      await apiClient.post('/api/courses', formData);
       alert('Course created successfully!');
       navigate('/my-courses');
     } catch (error) {
@@ -30,8 +30,6 @@ export default function CreateCourse() {
 
   return (
     <div style={styles.container}>
-
-
       <div style={styles.formCard}>
         <h1 style={styles.title}>Create New Course</h1>
         <p style={styles.subtitle}>Fill in the details below to create your course. You can add modules and content after creation.</p>
@@ -95,44 +93,22 @@ export default function CreateCourse() {
           <div style={styles.section}>
             <h3 style={styles.sectionTitle}>Pricing</h3>
             
-            <div style={styles.row}>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Price (USD) *</label>
-                <input
-                  type="number"
-                  placeholder="99.99"
-                  value={formData.pricing.amount}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    pricing: { ...formData.pricing, amount: parseFloat(e.target.value) || 0 }
-                  })}
-                  required
-                  style={styles.input}
-                  min="0"
-                  step="0.01"
-                />
-                <small style={styles.hint}>Set your course price</small>
-              </div>
-
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Platform Commission (%)</label>
-                <input
-                  type="number"
-                  value={formData.pricing.commissionRate}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    pricing: { ...formData.pricing, commissionRate: parseInt(e.target.value) || 20 }
-                  })}
-                  style={styles.input}
-                  min="0"
-                  max="100"
-                />
-                <small style={styles.hint}>You'll earn {100 - formData.pricing.commissionRate}% of each sale</small>
-              </div>
-            </div>
-
-            <div style={styles.revenuePreview}>
-              <p>💰 Your earnings per sale: <strong>${(formData.pricing.amount * (100 - formData.pricing.commissionRate) / 100).toFixed(2)}</strong></p>
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Price (₹) *</label>
+              <input
+                type="number"
+                placeholder="99.99"
+                value={formData.pricing.amount}
+                onChange={(e) => setFormData({ 
+                  ...formData, 
+                  pricing: { ...formData.pricing, amount: parseFloat(e.target.value) || 0 }
+                })}
+                required
+                style={styles.input}
+                min="0"
+                step="0.01"
+              />
+              <small style={styles.hint}>Set your course price</small>
             </div>
           </div>
 
@@ -148,11 +124,10 @@ export default function CreateCourse() {
       </div>
 
       <div style={styles.infoCard}>
-        <h3 style={styles.infoTitle}>📝 Next Steps After Creation</h3>
+        <h3 style={styles.infoTitle}>Next Steps After Creation</h3>
         <ol style={styles.stepsList}>
           <li>Add modules to structure your course content</li>
           <li>Upload videos, PDFs, and other learning materials</li>
-          <li>Create assessments to test student knowledge</li>
           <li>Review and publish your course</li>
           <li>Share your course with students!</li>
         </ol>
@@ -162,27 +137,86 @@ export default function CreateCourse() {
 }
 
 const styles = {
-  container: { padding: '2rem', maxWidth: '1000px', margin: '0 auto', minHeight: '100%' },
-  header: { marginBottom: '2rem' },
-  backBtn: { padding: '0.5rem 1rem', background: 'white', color: '#48bb78', border: '1px solid #48bb78', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' },
-  formCard: { background: 'white', padding: '2.5rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', marginBottom: '2rem' },
-  title: { fontSize: '28px', fontWeight: 'bold', color: '#1a202c', marginBottom: '0.5rem' },
-  subtitle: { color: '#718096', marginBottom: '2rem', lineHeight: '1.6' },
-  form: { display: 'flex', flexDirection: 'column', gap: '2rem' },
-  section: { display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '2rem', borderBottom: '1px solid #e2e8f0' },
-  sectionTitle: { fontSize: '18px', fontWeight: '600', color: '#1a202c' },
-  inputGroup: { display: 'flex', flexDirection: 'column', gap: '0.5rem' },
-  label: { fontSize: '14px', fontWeight: '500', color: '#4a5568' },
-  input: { padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '16px' },
-  textarea: { padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '16px', fontFamily: 'inherit', resize: 'vertical' },
-  select: { padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '16px' },
-  hint: { color: '#718096', fontSize: '12px' },
+  container: { padding: '2.5rem', maxWidth: '1000px', margin: '0 auto', minHeight: '100%' },
+  formCard: { 
+    background: 'var(--bg-surface)', 
+    padding: '3rem', 
+    borderRadius: '24px', 
+    border: '1px solid var(--border-dim)', 
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)', 
+    marginBottom: '2.5rem' 
+  },
+  title: { fontSize: '32px', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '0.6rem', letterSpacing: '-0.025em' },
+  subtitle: { color: 'var(--text-secondary)', marginBottom: '2.5rem', lineHeight: '1.6', fontSize: '15px' },
+  form: { display: 'flex', flexDirection: 'column', gap: '2.5rem' },
+  section: { display: 'flex', flexDirection: 'column', gap: '1.75rem', paddingBottom: '2.5rem', borderBottom: '1px solid var(--border-dim)' },
+  sectionTitle: { fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  inputGroup: { display: 'flex', flexDirection: 'column', gap: '0.75rem' },
+  label: { fontSize: '14px', fontWeight: '700', color: 'var(--text-secondary)' },
+  input: { 
+    padding: '0.875rem 1.125rem', 
+    background: 'rgba(15, 23, 42, 0.5)', 
+    border: '1px solid var(--border-dim)', 
+    borderRadius: '12px', 
+    fontSize: '15px', 
+    color: 'var(--text-primary)', 
+    outline: 'none',
+    transition: 'border-color 0.2s, background 0.2s',
+  },
+  textarea: { 
+    padding: '0.875rem 1.125rem', 
+    background: 'rgba(15, 23, 42, 0.5)', 
+    border: '1px solid var(--border-dim)', 
+    borderRadius: '12px', 
+    fontSize: '15px', 
+    color: 'var(--text-primary)', 
+    outline: 'none', 
+    resize: 'vertical', 
+    minHeight: '140px',
+    transition: 'border-color 0.2s, background 0.2s',
+  },
+  select: { 
+    padding: '0.875rem 1.125rem', 
+    background: 'rgba(15, 23, 42, 0.5)', 
+    border: '1px solid var(--border-dim)', 
+    borderRadius: '12px', 
+    fontSize: '15px', 
+    color: 'var(--text-primary)', 
+    outline: 'none', 
+    appearance: 'none',
+  },
+  hint: { color: 'var(--text-muted)', fontSize: '12px', marginTop: '0.3rem' },
   row: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' },
-  revenuePreview: { padding: '1rem', background: '#f0fff4', borderRadius: '8px', color: '#22543d', borderLeft: '4px solid #48bb78' },
-  actions: { display: 'flex', gap: '1rem', justifyContent: 'flex-end' },
-  cancelBtn: { padding: '0.875rem 2rem', background: 'white', color: '#718096', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' },
-  submitBtn: { padding: '0.875rem 2rem', background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' },
-  infoCard: { background: '#edf2f7', padding: '2rem', borderRadius: '12px' },
-  infoTitle: { fontSize: '18px', fontWeight: '600', marginBottom: '1rem', color: '#1a202c' },
-  stepsList: { paddingLeft: '1.5rem', lineHeight: '2', color: '#4a5568' },
+  actions: { display: 'flex', gap: '1.25rem', justifyContent: 'flex-end' },
+  cancelBtn: { 
+    padding: '0.9rem 2.25rem', 
+    background: 'transparent', 
+    color: 'var(--text-secondary)', 
+    border: '1px solid var(--border-dim)', 
+    borderRadius: '12px', 
+    fontSize: '14px', 
+    fontWeight: '700', 
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  submitBtn: { 
+    padding: '0.9rem 2.25rem', 
+    background: 'var(--accent-gradient)', 
+    color: 'white', 
+    border: 'none', 
+    borderRadius: '12px', 
+    fontSize: '14px', 
+    fontWeight: '800', 
+    cursor: 'pointer', 
+    boxShadow: '0 8px 16px rgba(99, 102, 241, 0.3)',
+    transition: 'all 0.2s',
+  },
+  infoCard: { 
+    background: 'rgba(99, 102, 241, 0.05)', 
+    border: '1px solid rgba(99, 102, 241, 0.2)', 
+    padding: '2.5rem', 
+    borderRadius: '24px' 
+  },
+  infoTitle: { fontSize: '18px', fontWeight: '800', marginBottom: '1.5rem', color: 'var(--accent-primary)' },
+  stepsList: { paddingLeft: '1.5rem', lineHeight: '2.4', color: 'var(--text-secondary)', fontSize: '15px' },
 };

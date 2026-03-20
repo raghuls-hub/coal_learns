@@ -36,12 +36,12 @@ export default function CertificateVerify() {
       <div style={styles.card}>
         {error ? (
            <div style={styles.errorState}>
-             <h1 style={{color: '#ef4444'}}>❌ Invalid Certificate</h1>
+             <h1 style={{color: '#ef4444'}}>Invalid Certificate</h1>
              <p>{error}</p>
            </div>
         ) : (
            <div style={styles.successState}>
-             <div style={styles.icon}>✅</div>
+             <div style={styles.icon}>Verified</div>
              <h1 style={styles.title}>Verified Certificate</h1>
              <p style={styles.subtitle}>This certificate is valid and was issued by our platform.</p>
              
@@ -52,7 +52,7 @@ export default function CertificateVerify() {
                </div>
                <div style={styles.row}>
                  <span style={styles.label}>Course:</span>
-                 <strong style={styles.value}>{data.course?.title || 'Course Title Unavailable'}</strong>
+                 <strong style={styles.value}>{data.courseName || data.course?.title || 'Course Title Unavailable'}</strong>
                </div>
                <div style={styles.row}>
                  <span style={styles.label}>Issue Date:</span>

@@ -68,8 +68,8 @@ export default function CourseSalesPage() {
                     <h1 style={styles.title}>{course.title}</h1>
                     <p style={styles.subtitle}>{course.description}</p>
                     <div style={styles.meta}>
-                        <span>👨‍🏫 By {course.courseHandler?.profile?.firstName} {course.courseHandler?.profile?.lastName}</span>
-                        <span>📅 Last updated {new Date(course.updatedAt).toLocaleDateString()}</span>
+                        <span>Instructor: {course.courseHandler?.profile?.firstName} {course.courseHandler?.profile?.lastName}</span>
+                        <span>Last updated: {new Date(course.updatedAt).toLocaleDateString()}</span>
                     </div>
                 </div>
                 <div style={styles.enrollCard}>
@@ -90,9 +90,9 @@ export default function CourseSalesPage() {
                     <div style={styles.includes}>
                         <h4>This course includes:</h4>
                         <ul>
-                            <li>📚 10 hours on-demand video</li>
-                            <li>📝 Assignments</li>
-                            <li>🏆 Certificate of ownership</li>
+                            <li>10 hours on-demand video</li>
+                            <li>Assignments</li>
+                            <li>Certificate of ownership</li>
                         </ul>
                     </div>
                 </div>
@@ -104,9 +104,9 @@ export default function CourseSalesPage() {
                         <h2>What you'll learn</h2>
                         <div style={styles.learnList}>
                             {/* Mock learning points based on description */}
-                            <p>✓ Master the fundamentals of {course.title}</p>
-                            <p>✓ Build real-world projects</p>
-                            <p>✓ Advance your career needs</p>
+                            <p>Master the fundamentals of {course.title}</p>
+                            <p>Build real-world projects</p>
+                            <p>Advance your career needs</p>
                         </div>
                     </div>
 

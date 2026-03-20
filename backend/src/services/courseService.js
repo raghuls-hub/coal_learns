@@ -1,5 +1,7 @@
 const Course = require('../models/Course');
 const Module = require('../models/Module');
+const Enrollment = require('../models/Enrollment');
+const User = require('../models/User');
 
 /**
  * Create a new course
@@ -61,7 +63,7 @@ exports.getCourseById = async (courseId) => {
     .populate({
       path: 'modules',
       populate: {
-        path: 'content assessment',
+        path: 'content',
       },
     });
 
@@ -97,23 +99,47 @@ exports.updateCourse = async (courseId, updateData, userId, userRole) => {
  * Delete course
  */
 exports.deleteCourse = async (courseId, userId, userRole) => {
-  const course = await Course.findById(courseId);
+  const course = await Course.findById(courseId)
+    .populate('courseHandler', 'profile');
 
   if (!course) {
     throw new Error('Course not found');
   }
 
   // Check permissions
-  if (userRole !== 'admin' && course.courseHandler.toString() !== userId) {
+  if (userRole !== 'admin' && course.courseHandler._id.toString() !== userId) {
     throw new Error('Unauthorized to delete this course');
   }
 
-  // Delete associated modules and content
-  await Module.deleteMany({ course: courseId });
+  // --- STEP 1: Snapshot all enrollments before deletion ---
+  let instructorName = 'Platform Instructor';
+  if (course.courseHandler && course.courseHandler.profile) {
+    instructorName = `${course.courseHandler.profile.firstName} ${course.courseHandler.profile.lastName}`;
+  }
 
+  const snapshot = {
+    title: course.title,
+    description: course.description,
+    thumbnail: course.thumbnail || '',
+    category: course.category,
+    level: course.level,
+    instructorName,
+    totalModules: course.modules ? course.modules.length : 0,
+    deletedAt: new Date(),
+  };
+
+  // Update all enrollments for this course with the snapshot
+  const enrollmentUpdateResult = await Enrollment.updateMany(
+    { course: courseId },
+    { $set: { courseSnapshot: snapshot } }
+  );
+  console.log(`[deleteCourse] Snapshotted ${enrollmentUpdateResult.modifiedCount} enrollment(s) for course ${courseId}`);
+
+  // --- STEP 2: Delete modules & content, then course ---
+  await Module.deleteMany({ course: courseId });
   await Course.findByIdAndDelete(courseId);
 
-  return { message: 'Course deleted successfully' };
+  return { message: 'Course deleted successfully', snapshotted: enrollmentUpdateResult.modifiedCount };
 };
 
 /**
@@ -192,7 +218,7 @@ exports.getModulesByCourseId = async (courseId) => {
  * Get module by ID
  */
 exports.getModuleById = async (moduleId) => {
-  return await Module.findById(moduleId).populate('content').populate('assessment');
+  return await Module.findById(moduleId).populate('content');
 };
 
 /**
@@ -206,6 +232,34 @@ exports.createModule = async (courseId, moduleData) => {
   await Course.findByIdAndUpdate(courseId, { $push: { modules: module._id } });
   
   return module;
+};
+
+/**
+ * Update module
+ */
+exports.updateModule = async (moduleId, updateData) => {
+  const module = await Module.findByIdAndUpdate(moduleId, updateData, { new: true, runValidators: true });
+  if (!module) throw new Error('Module not found');
+  return module;
+};
+
+/**
+ * Delete module
+ */
+exports.deleteModule = async (courseId, moduleId) => {
+  const module = await Module.findById(moduleId);
+  if (!module) throw new Error('Module not found');
+  
+  // Remove content inside module
+  await Content.deleteMany({ module: moduleId });
+  
+  // Remove module from course
+  await Course.findByIdAndUpdate(courseId, { $pull: { modules: moduleId } });
+  
+  // Delete module
+  await Module.findByIdAndDelete(moduleId);
+  
+  return { message: 'Module deleted successfully' };
 };
 
 /**
@@ -228,42 +282,9 @@ exports.addContentToModule = async (moduleId, contentData) => {
 /**
  * Add assessment to module
  */
-const Assessment = require('../models/Assessment'); // Ensure Assessment is imported
-exports.addAssessmentToModule = async (moduleId, assessmentData) => {
-  // Check if assessment already exists? For now assume one per module or replace
-  // But model has one assessment field.
-  const assessment = new Assessment({ ...assessmentData, module: moduleId });
-  await assessment.save();
-  
-  const module = await Module.findByIdAndUpdate(
-    moduleId,
-    { assessment: assessment._id },
-    { new: true }
-  ).populate('assessment');
-  
-  return module;
-};
 
-/**
- * Add assessment to course (Final Exam)
- */
-exports.addAssessmentToCourse = async (courseId, assessmentData) => {
-  // Check if final exam already exists
-  const existing = await Assessment.findOne({ course: courseId, type: 'final_exam' });
-  if (existing) {
-    throw new Error('Final Assessment already exists for this course');
-  }
 
-  const assessment = new Assessment({ 
-    ...assessmentData, 
-    course: courseId,
-    type: 'final_exam',
-    module: null // Explicitly null for course-level check
-  });
-  
-  await assessment.save();
-  return assessment;
-};
+
 
 /**
  * Update content
@@ -303,40 +324,4 @@ exports.deleteContent = async (contentId) => {
   return { message: 'Content deleted successfully' };
 };
 
-/**
- * Update assessment
- */
-exports.updateAssessment = async (assessmentId, updateData) => {
-  const assessment = await Assessment.findByIdAndUpdate(
-    assessmentId,
-    updateData,
-    { new: true, runValidators: true }
-  );
-  
-  if (!assessment) {
-    throw new Error('Assessment not found');
-  }
-  
-  return assessment;
-};
 
-/**
- * Delete assessment
- */
-exports.deleteAssessment = async (assessmentId) => {
-  const assessment = await Assessment.findById(assessmentId);
-  
-  if (!assessment) {
-    throw new Error('Assessment not found');
-  }
-  
-  // Remove from module
-  await Module.findByIdAndUpdate(assessment.module, {
-    assessment: null
-  });
-  
-  // Delete assessment
-  await Assessment.findByIdAndDelete(assessmentId);
-  
-  return { message: 'Assessment deleted successfully' };
-};

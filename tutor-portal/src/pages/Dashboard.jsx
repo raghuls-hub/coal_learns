@@ -2,11 +2,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import apiClient from '../services/api';
+import { MortarboardIcon, UsersIcon, RevenueIcon, LightbulbIcon, ZapIcon } from '../components/Icons';
+import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
+    courses: [],
+    enrollments: [],
     totalCourses: 0,
     publishedCourses: 0,
     totalEnrollments: 0,
@@ -19,15 +23,35 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      const response = await apiClient.get('/api/courses');
-      const courses = response.data.data.courses;
+      const [coursesRes, enrollmentsRes] = await Promise.all([
+        apiClient.get('/api/courses'),
+        apiClient.get('/api/enrollments/tutor')
+      ]);
+      const courses = coursesRes.data.data.courses || [];
+      const enrollments = enrollmentsRes.data.data || [];
       
       const totalCourses = courses.length;
-      const publishedCourses = courses.filter(c => c.settings.isPublished).length;
-      const totalEnrollments = courses.reduce((sum, c) => sum + c.stats.enrollmentCount, 0);
-      const totalRevenue = courses.reduce((sum, c) => sum + (c.pricing.amount * c.stats.enrollmentCount), 0);
+      const publishedCourses = courses.filter(c => c.settings?.isPublished).length;
+      const totalEnrollments = enrollments.length;
+      
+      // Calculate revenue per course and total revenue
+      let totalRevenue = 0;
+      const courseRevenues = {};
+      enrollments.forEach(en => {
+        const amount = en.amountPaid || 0;
+        totalRevenue += amount;
+        if (en.course && en.course._id) {
+          courseRevenues[en.course._id] = (courseRevenues[en.course._id] || 0) + amount;
+        }
+      });
 
-      setStats({ totalCourses, publishedCourses, totalEnrollments, totalRevenue });
+      // Attach revenue to courses list for display
+      const coursesWithRevenue = courses.map(c => ({
+        ...c,
+        revenue: courseRevenues[c._id] || 0
+      }));
+
+      setStats({ courses: coursesWithRevenue, enrollments, totalCourses, publishedCourses, totalEnrollments, totalRevenue });
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     }
@@ -39,73 +63,233 @@ export default function Dashboard() {
 
       <div style={styles.grid}>
         <div style={styles.card}>
-          <div style={styles.cardIcon}>📚</div>
-          <h3 style={styles.cardTitle}>Total Courses</h3>
-          <p style={styles.stat}>{stats.totalCourses}</p>
-          <p style={styles.label}>{stats.publishedCourses} published</p>
+          <div style={styles.cardHeader}>
+            <div style={styles.cardIconWrap}><MortarboardIcon size={22} color='#6366f1' /></div>
+            <div>
+              <h3 style={styles.cardTitle}>Total Courses</h3>
+              <p style={styles.stat}>{stats.totalCourses}</p>
+            </div>
+          </div>
+          <div style={styles.listContainer}>
+            {stats.courses.map((course, idx) => (
+              <div key={idx} style={styles.listItem}>
+                <span style={styles.itemTitle}>{course.title}</span>
+                <span style={styles.itemBadge}>{course.settings?.isPublished ? 'Published' : 'Draft'}</span>
+              </div>
+            ))}
+            {stats.courses.length === 0 && <p style={styles.emptyText}>No courses yet</p>}
+          </div>
+          <div style={styles.chartWrapper}>
+            <p style={styles.chartTitle}>Enrollments per Course</p>
+            <div style={{ width: '100%', height: 120 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.courses.map(c => ({ name: c.title, value: c.stats?.enrollmentCount || 0 }))}>
+                  <XAxis dataKey="name" hide />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-dim)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                    itemStyle={{ color: '#6366f1', fontWeight: 'bold' }}
+                    labelStyle={{ color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '600' }}
+                    cursor={{ fill: 'rgba(99, 102, 241, 0.1)' }}
+                    formatter={(value) => [value, 'Enrollments']}
+                  />
+                  <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
 
         <div style={styles.card}>
-          <div style={styles.cardIcon}>👥</div>
-          <h3 style={styles.cardTitle}>Total Enrollments</h3>
-          <p style={styles.stat}>{stats.totalEnrollments}</p>
-          <p style={styles.label}>Across all courses</p>
+          <div style={styles.cardHeader}>
+            <div style={styles.cardIconWrap}><UsersIcon size={22} color='#8b5cf6' /></div>
+            <div>
+              <h3 style={styles.cardTitle}>Total Enrollments</h3>
+              <p style={styles.stat}>{stats.totalEnrollments}</p>
+            </div>
+          </div>
+          <div style={styles.listContainer}>
+            {stats.enrollments.map((en, idx) => (
+              <div key={idx} style={styles.listItem}>
+                <span style={styles.itemTitle}>{en.user?.profile?.firstName} {en.user?.profile?.lastName} <span style={{fontSize: '11px', color: 'var(--text-secondary)'}}>({en.course?.title})</span></span>
+                <span style={styles.itemValue}>{en.progress || 0}%</span>
+              </div>
+            ))}
+            {stats.enrollments.length === 0 && <p style={styles.emptyText}>No enrollments yet</p>}
+          </div>
+          <div style={styles.chartWrapper}>
+            <p style={styles.chartTitle}>Student Progress (%)</p>
+            <div style={{ width: '100%', height: 120 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.enrollments.map(en => ({ name: `${en.user?.profile?.firstName} ${en.user?.profile?.lastName}`, value: en.progress || 0 }))}>
+                  <XAxis dataKey="name" hide />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-dim)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                    itemStyle={{ color: '#8b5cf6', fontWeight: 'bold' }}
+                    labelStyle={{ color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '600' }}
+                    cursor={{ fill: 'rgba(139, 92, 246, 0.1)' }}
+                    formatter={(value) => [`${value}%`, 'Progress']}
+                  />
+                  <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
 
-        <div style={styles.card} className="hover-shadow">
-          <div style={styles.cardIcon}>💰</div>
-          <h3 style={styles.cardTitle}>Total Revenue</h3>
-          <p style={styles.stat}>${stats.totalRevenue.toFixed(2)}</p>
-          <p style={styles.label}>Before commission</p>
+        <div style={styles.card}>
+          <div style={styles.cardHeader}>
+            <div style={styles.cardIconWrap}><RevenueIcon size={22} color='#10b981' /></div>
+            <div>
+              <h3 style={styles.cardTitle}>Total Revenue</h3>
+              <p style={styles.stat}>₹{stats.totalRevenue.toFixed(0)}</p>
+            </div>
+          </div>
+          <div style={styles.listContainer}>
+            {stats.courses.map((course, idx) => (
+              <div key={idx} style={styles.listItem}>
+                <span style={styles.itemTitle}>{course.title}</span>
+                <span style={styles.itemValue}>₹{(course.revenue || 0).toFixed(0)}</span>
+              </div>
+            ))}
+            {stats.courses.length === 0 && <p style={styles.emptyText}>No revenue yet</p>}
+          </div>
+          <div style={styles.chartWrapper}>
+            <p style={styles.chartTitle}>Revenue per Course</p>
+            <div style={{ width: '100%', height: 120 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.courses.map(c => ({ name: c.title, value: c.revenue || 0 }))}>
+                  <XAxis dataKey="name" hide />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-dim)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                    itemStyle={{ color: '#10b981', fontWeight: 'bold' }}
+                    labelStyle={{ color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '600' }}
+                    cursor={{ fill: 'rgba(16, 185, 129, 0.1)' }}
+                    formatter={(value) => [`₹${value}`, 'Revenue']}
+                  />
+                  <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
-
-        <div style={styles.card} className="hover-shadow">
-          <div style={styles.cardIcon}>⭐</div>
-          <h3 style={styles.cardTitle}>Avg Rating</h3>
-          <p style={styles.stat}>4.8</p>
-          <p style={styles.label}>Based on reviews</p>
-        </div>
-      </div>
-
-      <div style={styles.section}>
-        <h2 style={styles.sectionTitle}>🚀 Quick Actions</h2>
-        <div style={styles.actions}>
-          <button onClick={() => navigate('/create-course')} style={styles.actionBtn}>
-            ➕ Create New Course
-          </button>
-          <button onClick={() => navigate('/my-courses')} style={styles.actionBtn}>
-            📝 Edit Courses
-          </button>
-          <button style={styles.actionBtn}>📊 View Analytics</button>
-          <button style={styles.actionBtn}>💬 Student Messages</button>
-        </div>
-      </div>
-
-      <div style={styles.section}>
-        <h2 style={styles.sectionTitle}>💡 Tips for Success</h2>
-        <ul style={styles.tipsList}>
-          <li>Create engaging course content with clear learning outcomes</li>
-          <li>Use a mix of videos, PDFs, and interactive assessments</li>
-          <li>Respond to student questions promptly</li>
-          <li>Keep your courses updated with latest information</li>
-          <li>Promote your courses through social media</li>
-        </ul>
       </div>
     </div>
   );
 }
 
 const styles = {
-  container: { padding: '2rem', maxWidth: '1400px', margin: '0 auto' },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' },
-  card: { background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
-  cardIcon: { fontSize: '32px', marginBottom: '0.5rem' },
-  cardTitle: { fontSize: '14px', color: '#718096', marginBottom: '0.5rem', fontWeight: '500' },
-  stat: { fontSize: '32px', fontWeight: 'bold', color: '#1a202c', marginBottom: '0.25rem' },
-  label: { fontSize: '12px', color: '#48bb78' },
-  section: { background: 'white', padding: '2rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '2rem' },
-  sectionTitle: { fontSize: '18px', fontWeight: '600', marginBottom: '1.5rem', color: '#1a202c' },
-  actions: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' },
-  actionBtn: { padding: '1rem', background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
-  tipsList: { paddingLeft: '1.5rem', lineHeight: '2', color: '#4a5568' },
+  container: { padding: '2.5rem', maxWidth: '1400px', margin: '0 auto', minHeight: '100%', display: 'flex', flexDirection: 'column' },
+  grid: { 
+    display: 'grid', 
+    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+    gap: '2rem', 
+    marginBottom: '3rem',
+    alignItems: 'stretch',
+    minHeight: 'calc(100vh - 150px)'
+  },
+  card: { 
+    background: 'var(--bg-surface)', 
+    padding: '2rem', 
+    borderRadius: '20px', 
+    border: '1px solid var(--border-dim)', 
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%'
+  },
+  cardHeader: {
+    display: 'flex',
+    gap: '1rem',
+    alignItems: 'center',
+    marginBottom: '1.5rem',
+    borderBottom: '1px solid var(--border-dim)',
+    paddingBottom: '1rem',
+    flexShrink: 0
+  },
+  cardIconWrap: {
+    width: '50px',
+    height: '50px',
+    borderRadius: '12px',
+    background: 'rgba(99, 102, 241, 0.08)',
+    border: '1px solid rgba(99, 102, 241, 0.15)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardTitle: { 
+    fontSize: '14px', 
+    color: 'var(--text-secondary)', 
+    marginBottom: '0.25rem', 
+    fontWeight: '700', 
+    textTransform: 'uppercase', 
+    letterSpacing: '0.1em' 
+  },
+  stat: { 
+    fontSize: '32px', 
+    fontWeight: '900', 
+    color: 'var(--text-primary)', 
+    letterSpacing: '-0.02em',
+    margin: 0
+  },
+  listContainer: {
+    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.75rem',
+    paddingRight: '0.5rem',
+    flex: 1,
+    marginBottom: '1.5rem'
+  },
+  listItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '0.75rem',
+    background: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: '10px',
+    border: '1px solid rgba(255, 255, 255, 0.05)'
+  },
+  itemTitle: {
+    fontSize: '14px',
+    color: 'var(--text-primary)',
+    fontWeight: '600',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    maxWidth: '70%'
+  },
+  itemValue: {
+    fontSize: '14px',
+    fontWeight: '700',
+    color: 'var(--accent-primary)'
+  },
+  itemBadge: {
+    fontSize: '11px',
+    padding: '0.2rem 0.5rem',
+    borderRadius: '12px',
+    background: 'var(--accent-primary)',
+    color: '#fff',
+    fontWeight: 'bold'
+  },
+  emptyText: {
+    color: 'var(--text-secondary)',
+    fontSize: '14px',
+    textAlign: 'center',
+    padding: '1rem 0'
+  },
+  chartWrapper: {
+    paddingTop: '1rem',
+    borderTop: '1px solid var(--border-dim)',
+    flexShrink: 0
+  },
+  chartTitle: {
+    fontSize: '11px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    color: 'var(--text-secondary)',
+    fontWeight: '700',
+    marginBottom: '0.5rem',
+    textAlign: 'center'
+  }
 };
