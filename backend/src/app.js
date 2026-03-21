@@ -15,7 +15,6 @@ const enrollmentRoutes = require('./routes/enrollment.routes');
 const progressRoutes = require('./routes/progress.routes');
 
 const userRoutes = require('./routes/user.routes');
-const aiRoutes = require('./routes/ai.routes');
 const certificateRoutes = require('./routes/certificate.routes');
 const uploadRoutes = require('./routes/upload.routes');
 
@@ -87,7 +86,6 @@ app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/progress', progressRoutes);
 
 app.use('/api/users', userRoutes);
-app.use('/api/ai', aiRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/upload', uploadRoutes);
 // Additional routes will be added as we build them

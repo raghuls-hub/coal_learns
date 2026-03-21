@@ -1,7 +1,7 @@
 {
   "name": "lms-backend",
   "version": "1.0.0",
-  "description": "MERN LMS Backend with Examination Engine and Blockchain Certificates",
+  "description": "MERN LMS Backend with Examination Engine",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -11,15 +11,11 @@
   },
   "keywords": [
     "lms",
-    "mern",
-    "blockchain",
-    "ai"
+    "mern"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@google/generative-ai": "^0.1.3",
-    "aws-sdk": "^2.1519.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
@@ -38,8 +34,6 @@
     "nodemailer": "^6.9.7",
     "pdfkit": "^0.14.0",
     "qrcode": "^1.5.4",
-    "redis": "^4.6.11",
-    "stripe": "^14.10.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
