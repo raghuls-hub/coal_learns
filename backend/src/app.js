@@ -35,7 +35,8 @@ app.use(cors({
   origin: [
     process.env.ADMIN_URL || 'http://localhost:3001',
     process.env.TUTOR_URL || 'http://localhost:3002',
-    process.env.APP_URL || 'http://localhost:3003',
+    'http://localhost:3003',
+    'http://localhost:3000', // Unified portal
     'http://localhost:5173', // Vite default dev server
     'http://localhost:5174', // Vite alternative port
   ],

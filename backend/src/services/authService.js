@@ -39,21 +39,33 @@ exports.register = async (userData) => {
 /**
  * Login user
  */
-exports.login = async (email, password) => {
-  console.log('Login attempt:', email);
+exports.login = async (email, password, expectedRole) => {
+  console.log('Login attempt:', email, 'Expected Role:', expectedRole);
   
   // Find user and include password
   const user = await User.findOne({ email }).select('+password');
   
   if (!user) {
     console.log('User not found');
-    throw new Error('Invalid email or password');
+    const error = new Error('Invalid email or password');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  // Check if role matches if expectedRole is provided
+  if (expectedRole && user.role !== expectedRole) {
+    console.log('Role mismatch:', user.role, 'vs', expectedRole);
+    const error = new Error(`Unauthorized. This portal is for ${expectedRole}s only.`);
+    error.statusCode = 403;
+    throw error;
   }
 
   // Check if user is active
   if (!user.isActive) {
     console.log('User inactive');
-    throw new Error('Account is deactivated. Contact support.');
+    const error = new Error('Account is deactivated. Contact support.');
+    error.statusCode = 403;
+    throw error;
   }
 
   // Verify password
@@ -62,7 +74,9 @@ exports.login = async (email, password) => {
   
   if (!isPasswordValid) {
     console.log('Password invalid');
-    throw new Error('Invalid email or password');
+    const error = new Error('Invalid email or password');
+    error.statusCode = 401;
+    throw error;
   }
 
   console.log('Password verified. Updating last login...');
