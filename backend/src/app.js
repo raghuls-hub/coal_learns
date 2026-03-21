@@ -100,14 +100,14 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/courses', courseRoutes);
-app.use('/api/enrollments', enrollmentRoutes);
-app.use('/api/progress', progressRoutes);
+app.use('/auth', authRoutes);
+app.use('/courses', courseRoutes);
+app.use('/enrollments', enrollmentRoutes);
+app.use('/progress', progressRoutes);
 
-app.use('/api/users', userRoutes);
-app.use('/api/certificates', certificateRoutes);
-app.use('/api/upload', uploadRoutes);
+app.use('/users', userRoutes);
+app.use('/certificates', certificateRoutes);
+app.use('/upload', uploadRoutes);
 // Additional routes will be added as we build them
 
 // 404 handler
