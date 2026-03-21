@@ -30,16 +30,35 @@ app.use(helmet({
 }));
 
 // CORS configuration
+const allowedOrigins = [
+  process.env.ADMIN_URL,
+  process.env.TUTOR_URL,
+  process.env.APP_URL,
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'https://coal-learns.vercel.app'
+].filter(Boolean);
+
 app.use(cors({
-  origin: [
-    process.env.ADMIN_URL || 'http://localhost:3001',
-    process.env.TUTOR_URL || 'http://localhost:3002',
-    'http://localhost:3003',
-    'http://localhost:3000', // Unified portal
-    'http://localhost:5173', // Vite default dev server
-    'http://localhost:5174', // Vite alternative port
-    'https://coal-learns.vercel.app', // Vercel Production Frontend
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const isAllowed = allowedOrigins.indexOf(origin) !== -1 || 
+                     origin.endsWith('.vercel.app') || 
+                     origin.includes('localhost') || 
+                     origin.includes('127.0.0.1');
+                     
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 
