@@ -38,6 +38,7 @@ app.use(cors({
     'http://localhost:3000', // Unified portal
     'http://localhost:5173', // Vite default dev server
     'http://localhost:5174', // Vite alternative port
+    'https://coal-learns.vercel.app', // Vercel Production Frontend
   ],
   credentials: true,
 }));
