@@ -5,15 +5,9 @@ export default function Navigation() {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isActive = (p) => location.pathname.startsWith(p);
 
-  const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
-
-  const handleLogout = () => {
-    logout();
-    navigate('/candidate/login');
-  };
-
-  const navLinks = [
+  const links = [
     { label: 'Explore', path: '/candidate/catalog' },
     ...(isAuthenticated ? [
       { label: 'My Learning', path: '/candidate/my-learning' },
@@ -23,39 +17,40 @@ export default function Navigation() {
 
   return (
     <nav style={S.nav}>
-      <div style={S.container}>
-        {/* Brand */}
+      <div style={S.inner}>
         <div style={S.brand} onClick={() => navigate('/candidate/catalog')}>
-          <div style={S.logoBox}>CL</div>
-          <span style={S.brandText}>Coal Learns</span>
+          <div style={S.mark}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <span style={S.brandName}>Coal Learns</span>
         </div>
 
-        {/* Nav Links */}
         <div style={S.links}>
-          {navLinks.map(({ label, path }) => (
-            <button
-              key={path}
-              onClick={() => navigate(path)}
-              style={isActive(path) ? S.linkActive : S.link}
-            >
+          {links.map(({ label, path }) => (
+            <button key={path} onClick={() => navigate(path)} style={isActive(path) ? S.linkActive : S.link}>
               {label}
-              {isActive(path) && <span style={S.activeDot} />}
             </button>
           ))}
         </div>
 
-        {/* Right Actions */}
-        <div style={S.actions}>
+        <div style={S.right}>
           {isAuthenticated ? (
             <>
-              <div style={S.userChip}>
+              <div style={S.chip}>
                 <div style={S.avatar}>{(user?.email?.[0] || 'U').toUpperCase()}</div>
-                <span style={S.userName}>{user?.email?.split('@')[0] || 'User'}</span>
+                <span style={S.chipName}>{user?.email?.split('@')[0]}</span>
               </div>
-              <button onClick={handleLogout} style={S.logoutBtn}>Logout</button>
+              <button onClick={() => { logout(); navigate('/candidate/login'); }} style={S.logoutBtn}>
+                Sign Out
+              </button>
             </>
           ) : (
-            <button onClick={() => navigate('/candidate/login')} style={S.loginBtn}>Sign In</button>
+            <>
+              <button onClick={() => navigate('/candidate/login')} style={S.ghostBtn}>Sign In</button>
+              <button onClick={() => navigate('/candidate/register')} style={S.primaryBtn}>Get Started</button>
+            </>
           )}
         </div>
       </div>
@@ -64,19 +59,19 @@ export default function Navigation() {
 }
 
 const S = {
-  nav: { background: '#1e293b', borderBottom: '1px solid #334155', position: 'sticky', top: 0, zIndex: 100 },
-  container: { maxWidth: '1400px', margin: '0 auto', padding: '0 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px' },
-  brand: { display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', flexShrink: 0 },
-  logoBox: { width: '32px', height: '32px', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '13px', letterSpacing: '0.02em' },
-  brandText: { fontSize: '17px', fontWeight: '700', color: '#f1f5f9', letterSpacing: '-0.01em' },
-  links: { display: 'flex', gap: '0.25rem', alignItems: 'center' },
-  link: { position: 'relative', padding: '0.375rem 0.875rem', background: 'none', border: 'none', color: '#94a3b8', fontSize: '14px', fontWeight: '500', cursor: 'pointer', borderRadius: '6px', transition: 'color 0.15s, background 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' },
-  linkActive: { position: 'relative', padding: '0.375rem 0.875rem', background: 'rgba(99,102,241,0.12)', border: 'none', color: '#a5b4fc', fontSize: '14px', fontWeight: '600', cursor: 'pointer', borderRadius: '6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' },
-  activeDot: { width: '4px', height: '4px', borderRadius: '50%', background: '#6366f1', display: 'block' },
-  actions: { display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 },
-  userChip: { display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#0f172a', border: '1px solid #334155', borderRadius: '99px', padding: '4px 12px 4px 4px' },
-  avatar: { width: '26px', height: '26px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '700', fontSize: '12px' },
-  userName: { fontSize: '13px', fontWeight: '600', color: '#cbd5e1' },
-  loginBtn: { padding: '0.45rem 1.25rem', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
-  logoutBtn: { padding: '0.4rem 1rem', background: 'transparent', color: '#94a3b8', border: '1px solid #334155', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
+  nav: { position: 'sticky', top: 0, zIndex: 100, background: 'rgba(6,9,18,0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' },
+  inner: { maxWidth: 1280, margin: '0 auto', padding: '0 2rem', height: 62, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' },
+  brand: { display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexShrink: 0 },
+  mark: { width: 32, height: 32, borderRadius: 9, background: 'linear-gradient(135deg, #6366f1, #22d3ee)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  brandName: { fontSize: 16, fontWeight: 700, color: '#f0f4ff', letterSpacing: '-0.02em' },
+  links: { display: 'flex', gap: 4 },
+  link: { padding: '0.4rem 1rem', background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, cursor: 'pointer', borderRadius: 8, transition: 'color 0.2s, background 0.2s' },
+  linkActive: { padding: '0.4rem 1rem', background: 'rgba(99,102,241,0.12)', border: 'none', color: '#a5b4fc', fontSize: 14, fontWeight: 600, cursor: 'pointer', borderRadius: 8 },
+  right: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 },
+  chip: { display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 99, padding: '4px 12px 4px 4px' },
+  avatar: { width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 11 },
+  chipName: { fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' },
+  ghostBtn: { padding: '0.45rem 1.1rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  primaryBtn: { padding: '0.45rem 1.1rem', background: 'linear-gradient(135deg, #6366f1, #22d3ee)', border: 'none', color: 'white', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  logoutBtn: { padding: '0.4rem 1rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-muted)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
 };

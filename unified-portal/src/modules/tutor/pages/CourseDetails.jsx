@@ -1,342 +1,141 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/api';
 
 export default function CourseDetails() {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-
   const [course, setCourse] = useState(null);
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModuleForm, setShowModuleForm] = useState(false);
-  const [newModuleTitle, setNewModuleTitle] = useState('');
-  const [editingModule, setEditingModule] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
 
-  useEffect(() => {
-    fetchCourseDetails();
-  }, [courseId]);
+  useEffect(() => { fetchData(); }, [courseId]);
 
-  const fetchCourseDetails = async () => {
+  const fetchData = async () => {
     try {
-      const [courseRes, modulesRes] = await Promise.all([
+      const [cRes, mRes] = await Promise.all([
         apiClient.get(`/courses/${courseId}`),
-        apiClient.get(`/courses/${courseId}/modules`)
+        apiClient.get(`/courses/${courseId}/modules`),
       ]);
-
-      setCourse(courseRes.data.data);
-      // Depending on API structure, modules might be in course object or separate
-      // Assuming modules are returned or populated request needed?
-      // Based on typical REST: GET /api/courses/{id}/modules is best practice
-      // But if backend doesn't have it, we might need to rely on populate in getCourse
-      if (courseRes.data.data.modules && courseRes.data.data.modules.length > 0 && typeof courseRes.data.data.modules[0] === 'object') {
-        setModules(courseRes.data.data.modules);
-      } else {
-        // If modules are just IDs, or if we want to fetch separately. 
-        // Let's assume for now we might need to implement the route or use what we have.
-        // Checking backend Service... getCourseById populates modules.
-        setModules(modulesRes.data.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch details:', error);
-      // alert('Error loading course details');
-    } finally {
-      setLoading(false);
-    }
+      setCourse(cRes.data.data);
+      const mods = cRes.data.data.modules?.length && typeof cRes.data.data.modules[0] === 'object'
+        ? cRes.data.data.modules
+        : mRes.data.data || [];
+      setModules(mods);
+    } catch {}
+    finally { setLoading(false); }
   };
 
-  const handleCreateModule = async (e) => {
+  const createModule = async (e) => {
     e.preventDefault();
     try {
-      await apiClient.post(`/courses/${courseId}/modules`, {
-        title: newModuleTitle,
-        order: modules.length + 1
-      });
-      setNewModuleTitle('');
-      setShowModuleForm(false);
-      fetchCourseDetails();
-    } catch (error) {
-      console.error('Failed to create module:', error);
-      alert('Failed to create module');
-    }
+      await apiClient.post(`/courses/${courseId}/modules`, { title: newTitle, order: modules.length + 1 });
+      setNewTitle(''); setShowForm(false); fetchData();
+    } catch { alert('Failed to create module'); }
   };
 
-  const handleEditModule = async (moduleId, e) => {
+  const editModule = async (modId, e) => {
     e.stopPropagation();
     try {
-      await apiClient.put(`/courses/${courseId}/modules/${moduleId}`, {
-        title: editTitle
-      });
-      setEditingModule(null);
-      setEditTitle('');
-      fetchCourseDetails();
-    } catch (error) {
-      console.error('Failed to edit module:', error);
-      alert('Failed to update module');
-    }
+      await apiClient.put(`/courses/${courseId}/modules/${modId}`, { title: editTitle });
+      setEditingId(null); fetchData();
+    } catch { alert('Failed to update module'); }
   };
 
-  const handleDeleteModule = async (moduleId, e) => {
+  const deleteModule = async (modId, e) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this module and all its content?')) {
-      try {
-        await apiClient.delete(`/courses/${courseId}/modules/${moduleId}`);
-        fetchCourseDetails();
-      } catch (error) {
-        console.error('Failed to delete module:', error);
-        alert('Failed to delete module');
-      }
-    }
+    if (!confirm('Delete this module and all its content?')) return;
+    try { await apiClient.delete(`/courses/${courseId}/modules/${modId}`); fetchData(); }
+    catch { alert('Failed to delete module'); }
   };
 
-  if (loading) return <div style={styles.loading}>Loading...</div>;
-  if (!course) return <div style={styles.loading}>Course not found</div>;
+  if (loading) return <div style={S.loading}>Loading…</div>;
+  if (!course) return <div style={S.loading}>Course not found</div>;
 
   return (
-    <div style={styles.container}>
-
-
-      <div style={styles.header}>
+    <div style={S.page}>
+      <div style={S.header}>
         <div>
-          <h1 style={styles.title}>{course.title}</h1>
-          <p style={styles.subtitle}>{course.category} • {course.level}</p>
+          <h1 style={S.title}>{course.title}</h1>
+          <p style={S.subtitle}>{course.category} · {course.level}</p>
         </div>
-        <button onClick={() => setShowModuleForm(true)} style={styles.createBtn}>
-          Add Module
-        </button>
+        <button onClick={() => setShowForm(true)} style={S.addBtn}>+ Add Module</button>
       </div>
 
-      {showModuleForm && (
-        <div style={styles.formCard}>
-          <h3>Add New Module</h3>
-          <form onSubmit={handleCreateModule} style={styles.form}>
-            <input
-              type="text"
-              placeholder="Module Title"
-              value={newModuleTitle}
-              onChange={(e) => setNewModuleTitle(e.target.value)}
-              required
-              style={styles.input}
-            />
-            <div style={styles.formActions}>
-              <button type="submit" style={styles.submitBtn}>Create</button>
-              <button type="button" onClick={() => setShowModuleForm(false)} style={styles.cancelBtn}>Cancel</button>
+      {showForm && (
+        <div style={S.formCard}>
+          <h3 style={S.formTitle}>Add New Module</h3>
+          <form onSubmit={createModule} style={S.form}>
+            <input value={newTitle} onChange={e => setNewTitle(e.target.value)} required style={S.input} placeholder="Module title…" autoFocus />
+            <div style={S.formActions}>
+              <button type="submit" style={S.submitBtn}>Create Module</button>
+              <button type="button" onClick={() => setShowForm(false)} style={S.cancelBtn}>Cancel</button>
             </div>
           </form>
         </div>
       )}
 
-      <div style={styles.modulesList}>
+      <div style={S.moduleList}>
         {modules.length === 0 ? (
-          <div style={styles.emptyState}>
-            <p>No modules yet. Start structuring your course!</p>
+          <div style={S.empty}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 15 }}>No modules yet. Start structuring your course!</p>
           </div>
-        ) : (
-          modules.map((module, index) => (
-            <div key={module._id} style={styles.moduleWrapper}>
-              {editingModule === module._id ? (
-                <div style={styles.editForm}>
-                  <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    style={styles.editInput}
-                  />
-                  <div style={styles.editActions}>
-                    <button onClick={(e) => handleEditModule(module._id, e)} style={styles.saveBtn}>Save</button>
-                    <button onClick={() => setEditingModule(null)} style={styles.cancelLink}>Cancel</button>
-                  </div>
+        ) : modules.map((mod, i) => (
+          <div key={mod._id}>
+            {editingId === mod._id ? (
+              <div style={S.editRow}>
+                <input value={editTitle} onChange={e => setEditTitle(e.target.value)} style={{ ...S.input, flex: 1 }} autoFocus />
+                <button onClick={(e) => editModule(mod._id, e)} style={S.submitBtn}>Save</button>
+                <button onClick={() => setEditingId(null)} style={S.cancelBtn}>Cancel</button>
+              </div>
+            ) : (
+              <div style={S.moduleCard} onClick={() => navigate(`/tutor/course/${courseId}/module/${mod._id}`)}>
+                <div style={S.moduleLeft}>
+                  <span style={S.moduleNum}>Module {i + 1}</span>
+                  <h3 style={S.moduleTitle}>{mod.title}</h3>
+                  <span style={S.moduleCount}>{mod.content?.length || 0} chapters</span>
                 </div>
-              ) : (
-                <div
-                  style={styles.moduleCard}
-                  onClick={() => navigate(`/tutor/course/${courseId}/module/${module._id}`)}
-                >
-                  <div style={styles.moduleInfo}>
-                    <span style={styles.moduleOrder}>Module {index + 1}</span>
-                    <h3 style={styles.moduleTitle}>{module.title}</h3>
-                    <span style={styles.itemCount}>{module.content?.length || 0} items</span>
-                  </div>
-                  <div style={styles.moduleActions}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setEditingModule(module._id); setEditTitle(module.title); }}
-                      style={styles.iconBtn}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={(e) => handleDeleteModule(module._id, e)}
-                      style={{...styles.iconBtn, color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)'}}
-                    >
-                      Delete
-                    </button>
-                  </div>
+                <div style={S.moduleActions}>
+                  <button onClick={(e) => { e.stopPropagation(); setEditingId(mod._id); setEditTitle(mod.title); }} style={S.iconBtn}>Edit</button>
+                  <button onClick={(e) => deleteModule(mod._id, e)} style={{ ...S.iconBtn, color: '#f87171', borderColor: 'rgba(239,68,68,0.2)' }}>Delete</button>
                 </div>
-              )}
-            </div>
-          ))
-        )}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
-
-
     </div>
   );
 }
 
-const styles = {
-  container: { padding: '3rem', maxWidth: '1000px', margin: '0 auto', minHeight: '100%' },
-  loading: { textAlign: 'center', padding: '5rem', color: 'var(--text-secondary)', fontSize: '16px' },
-  header: { 
-    display: 'flex', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: '3rem', 
-    background: 'rgba(30, 41, 59, 0.4)', 
-    padding: '2.5rem', 
-    borderRadius: '24px', 
-    border: '1px solid var(--border-dim)',
-    backdropFilter: 'blur(10px)',
-  },
-  title: { fontSize: '32px', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '0.5rem', letterSpacing: '-0.025em' },
-  subtitle: { color: 'var(--text-secondary)', fontSize: '15px', fontWeight: '600' },
-  createBtn: { 
-    padding: '1rem 2rem', 
-    background: 'var(--accent-gradient)', 
-    color: 'white', 
-    border: 'none', 
-    borderRadius: '12px', 
-    fontSize: '15px', 
-    fontWeight: '800', 
-    cursor: 'pointer', 
-    boxShadow: '0 8px 16px rgba(99, 102, 241, 0.3)',
-    transition: 'all 0.2s',
-  },
-  modulesList: { display: 'flex', flexDirection: 'column', gap: '1.5rem' },
-  moduleCard: { 
-    display: 'flex', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    background: 'var(--bg-surface)', 
-    padding: '2rem', 
-    borderRadius: '20px', 
-    border: '1px solid var(--border-dim)', 
-    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', 
-    cursor: 'pointer', 
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
-    borderLeft: '4px solid var(--accent-primary)' 
-  },
-  moduleInfo: { display: 'flex', flexDirection: 'column', gap: '0.6rem' },
-  moduleOrder: { fontSize: '11px', color: 'var(--accent-primary)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em' },
-  moduleTitle: { fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.01em' },
-  itemCount: { fontSize: '14px', color: 'var(--text-muted)', fontWeight: '500' },
-  emptyState: { 
-    textAlign: 'center', 
-    padding: '5rem 2rem', 
-    color: 'var(--text-secondary)', 
-    background: 'var(--bg-surface)', 
-    borderRadius: '24px', 
-    border: '1px solid var(--border-dim)' 
-  },
-  formCard: { 
-    background: 'var(--bg-surface)', 
-    padding: '2.5rem', 
-    borderRadius: '20px', 
-    marginBottom: '3rem', 
-    border: '1px solid var(--border-dim)', 
-    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)' 
-  },
-  form: { display: 'flex', gap: '1.25rem', marginTop: '2rem' },
-  input: { 
-    flex: 1, 
-    padding: '0.9rem 1.125rem', 
-    background: 'var(--bg-base)', 
-    border: '1px solid var(--border-dim)', 
-    borderRadius: '12px', 
-    color: 'var(--text-primary)', 
-    outline: 'none',
-    transition: 'border-color 0.2s',
-  },
-  formActions: { display: 'flex', gap: '1rem' },
-  submitBtn: { 
-    padding: '0.9rem 1.75rem', 
-    background: 'var(--accent-gradient)', 
-    color: 'white', 
-    border: 'none', 
-    borderRadius: '12px', 
-    fontWeight: '800', 
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-  cancelBtn: { 
-    padding: '0.9rem 1.75rem', 
-    background: 'transparent', 
-    color: 'var(--text-secondary)', 
-    border: '1px solid var(--border-dim)', 
-    borderRadius: '12px', 
-    fontWeight: '700', 
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-  moduleWrapper: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  moduleActions: {
-    display: 'flex',
-    gap: '0.5rem',
-  },
-  iconBtn: {
-    padding: '0.5rem 1rem',
-    background: 'transparent',
-    color: 'var(--text-secondary)',
-    border: '1px solid var(--border-dim)',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: '600',
-    transition: 'all 0.2s',
-  },
-  editForm: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    padding: '1.5rem',
-    background: 'var(--bg-surface)',
-    borderRadius: '20px',
-    border: '1px solid var(--border-dim)',
-  },
-  editInput: {
-    flex: 1,
-    padding: '0.75rem 1rem',
-    background: 'var(--bg-base)',
-    border: '1px solid var(--accent-primary)',
-    borderRadius: '10px',
-    color: 'var(--text-primary)',
-    outline: 'none',
-  },
-  editActions: {
-    display: 'flex',
-    gap: '0.5rem',
-    alignItems: 'center',
-  },
-  saveBtn: {
-    padding: '0.5rem 1rem',
-    background: 'var(--accent-primary)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  cancelLink: {
-    padding: '0.5rem 1rem',
-    background: 'transparent',
-    color: 'var(--text-secondary)',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: '600',
-  }
+const S = {
+  page: { padding: '2rem', maxWidth: 1000, margin: '0 auto' },
+  loading: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh', color: 'var(--text-secondary)', fontSize: 16 },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '1.75rem 2rem', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' },
+  title: { fontSize: 26, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginBottom: 4 },
+  subtitle: { fontSize: 14, color: 'var(--text-secondary)', fontWeight: 600 },
+  addBtn: { padding: '0.75rem 1.5rem', background: 'linear-gradient(135deg, #6366f1, #22d3ee)', color: 'white', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', flexShrink: 0 },
+
+  formCard: { background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: '1.75rem', marginBottom: '1.5rem' },
+  formTitle: { fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1.25rem' },
+  form: { display: 'flex', gap: '1rem', flexWrap: 'wrap' },
+  input: { padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text-primary)', fontSize: 15, outline: 'none', minWidth: 200 },
+  formActions: { display: 'flex', gap: '0.75rem' },
+  submitBtn: { padding: '0.75rem 1.5rem', background: 'linear-gradient(135deg, #6366f1, #22d3ee)', color: 'white', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  cancelBtn: { padding: '0.75rem 1.5rem', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+
+  moduleList: { display: 'flex', flexDirection: 'column', gap: '1rem' },
+  empty: { textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14 },
+  moduleCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: '3px solid #6366f1', borderRadius: 12, padding: '1.5rem 1.75rem', cursor: 'pointer', transition: 'border-color 0.2s' },
+  moduleLeft: { display: 'flex', flexDirection: 'column', gap: 4 },
+  moduleNum: { fontSize: 11, fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.08em' },
+  moduleTitle: { fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' },
+  moduleCount: { fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 },
+  moduleActions: { display: 'flex', gap: '0.5rem' },
+  iconBtn: { padding: '0.5rem 1rem', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 },
+  editRow: { display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '1rem 1.25rem', flexWrap: 'wrap' },
 };

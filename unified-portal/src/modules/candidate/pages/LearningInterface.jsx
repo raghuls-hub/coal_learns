@@ -1,187 +1,150 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiClient from '../services/api';
-import {
-  CheckCircleIcon,
-  VideoIcon,
-  DocumentIcon,
-  LinkIcon,
-  BookOpenIcon,
-  BackIcon,
-} from '../components/Icons';
+
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+
+function resolveUrl(url) {
+  if (!url) return '';
+  return url.startsWith('http') ? url : `${API_BASE}${url}`;
+}
+
+function getYTEmbed(url) {
+  if (url.includes('watch?v=')) return `https://www.youtube.com/embed/${url.split('watch?v=')[1]?.split('&')[0]}`;
+  if (url.includes('youtu.be/')) return `https://www.youtube.com/embed/${url.split('youtu.be/')[1]?.split('?')[0]}`;
+  return url;
+}
+
+const TYPE_ICON = {
+  video: '▶',
+  video_upload: '▶',
+  text: '📄',
+  notes_upload: '📎',
+  link: '🔗',
+};
 
 export default function LearningInterface() {
   const { enrollmentId } = useParams();
   const navigate = useNavigate();
-
   const [enrollment, setEnrollment] = useState(null);
   const [modules, setModules] = useState([]);
-  const [currentContent, setCurrentContent] = useState(null);
-  const [currentModule, setCurrentModule] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [current, setCurrent] = useState(null);
+  const [currentMod, setCurrentMod] = useState(null);
   const [progress, setProgress] = useState({});
-  // Track the content ID that was being viewed so we can auto-mark it when navigating away
-  const prevContentRef = useRef(null);
-  const prevModuleRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiMessages, setAiMessages] = useState([{ role: 'ai', text: 'Hi! Ask me anything about this course.' }]);
+  const [aiInput, setAiInput] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const prevRef = useRef(null);
+  const aiEndRef = useRef(null);
 
-  useEffect(() => {
-    fetchEnrollment();
-  }, [enrollmentId]);
+  useEffect(() => { load(); }, [enrollmentId]);
+  useEffect(() => { aiEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [aiMessages, aiOpen]);
 
-  const fetchEnrollment = async () => {
+  const load = async () => {
     try {
       const res = await apiClient.get(`/enrollments/${enrollmentId}`);
       setEnrollment(res.data.data);
-
-      const course = res.data.data.course;
-      if (course.modules && course.modules.length > 0) {
-        setModules(course.modules);
-        if (!currentModule && course.modules[0].content && course.modules[0].content.length > 0) {
-          setCurrentModule(course.modules[0]);
-          setCurrentContent(course.modules[0].content[0]);
-          prevContentRef.current = course.modules[0].content[0];
-          prevModuleRef.current = course.modules[0];
-        }
+      const mods = res.data.data.course?.modules || [];
+      setModules(mods);
+      if (mods[0]?.content?.[0]) {
+        setCurrent(mods[0].content[0]);
+        setCurrentMod(mods[0]);
+        prevRef.current = { content: mods[0].content[0], mod: mods[0] };
       }
       await fetchProgress();
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
+    finally { setLoading(false); }
   };
 
   const fetchProgress = async () => {
     try {
-      const progressRes = await apiClient.get(`/progress/${enrollmentId}`);
-      const data = progressRes.data.data;
-      if (!data) return;
-
-      const newProgress = {};
-      if (data.completedContent) {
-        data.completedContent.forEach(c => {
-          const id = c._id || c;
-          newProgress[id] = true;
-        });
-      }
-      setProgress(newProgress);
-    } catch (err) {
-      console.error('[Frontend] Fetch Progress Error:', err);
-    }
+      const res = await apiClient.get(`/progress/${enrollmentId}`);
+      const map = {};
+      (res.data.data?.completedContent || []).forEach(c => { map[c._id || c] = true; });
+      setProgress(map);
+    } catch {}
   };
 
-  // Auto-marks content as complete when the user navigates away from it
-  const autoMarkComplete = async (contentId, moduleId) => {
-    if (!contentId || !moduleId) return;
+  const autoMark = async (contentId, modId) => {
+    if (!contentId || !modId) return;
     try {
-      await apiClient.put(`/progress/${enrollmentId}/content/${contentId}`, { moduleId });
-      setProgress(prev => ({ ...prev, [contentId]: true }));
-      // Don't await fetchProgress here — keep navigation snappy
+      await apiClient.put(`/progress/${enrollmentId}/content/${contentId}`, { moduleId: modId });
+      setProgress(p => ({ ...p, [contentId]: true }));
       fetchProgress();
-    } catch (err) {
-      console.error('[AutoComplete] Failed to mark:', err);
-    }
+    } catch {}
   };
 
-  const handleContentClick = (module, content) => {
-    // Auto-mark previous content as complete when switching chapters
-    if (prevContentRef.current && prevModuleRef.current) {
-      const prevId = prevContentRef.current._id;
-      const prevMid = prevModuleRef.current._id;
-      if (prevId !== content._id) {
-        autoMarkComplete(prevId, prevMid);
-      }
+  const handleSelect = (mod, content) => {
+    if (prevRef.current && prevRef.current.content._id !== content._id) {
+      autoMark(prevRef.current.content._id, prevRef.current.mod._id);
     }
-    prevContentRef.current = content;
-    prevModuleRef.current = module;
-    setCurrentModule(module);
-    setCurrentContent(content);
+    prevRef.current = { content, mod };
+    setCurrent(content);
+    setCurrentMod(mod);
   };
 
-  // Also auto-mark when user clicks the manual "Mark Complete" button
   const markComplete = async () => {
-    if (!currentContent || !currentModule) return;
+    if (!current || !currentMod) return;
     try {
-      await apiClient.put(`/progress/${enrollmentId}/content/${currentContent._id}`, {
-        moduleId: currentModule._id
-      });
-      setProgress(prev => ({ ...prev, [currentContent._id]: true }));
+      await apiClient.put(`/progress/${enrollmentId}/content/${current._id}`, { moduleId: currentMod._id });
+      setProgress(p => ({ ...p, [current._id]: true }));
       await fetchProgress();
-    } catch (error) {
-      console.error('[Frontend] Failed to mark complete:', error);
-    }
+    } catch {}
   };
 
-  const getYoutubeEmbedUrl = (url) => {
-    if (url.includes('watch?v=')) return `https://www.youtube.com/embed/${url.split('watch?v=')[1]?.split('&')[0]}`;
-    if (url.includes('youtu.be/')) return `https://www.youtube.com/embed/${url.split('youtu.be/')[1]?.split('?')[0]}`;
-    if (url.includes('/embed/')) return url;
-    return url;
+  const sendAi = async (e) => {
+    e.preventDefault();
+    if (!aiInput.trim()) return;
+    const msg = aiInput;
+    setAiMessages(m => [...m, { role: 'user', text: msg }]);
+    setAiInput('');
+    setAiLoading(true);
+    try {
+      const res = await apiClient.post('/ai/chat', { question: msg, courseId: enrollment?.course?._id });
+      setAiMessages(m => [...m, { role: 'ai', text: res.data.data.answer }]);
+    } catch {
+      setAiMessages(m => [...m, { role: 'error', text: 'Sorry, something went wrong.' }]);
+    } finally { setAiLoading(false); }
   };
 
-  const resolveUrl = (url) => {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    // Prepend API base if it's a relative path (GridFS upload)
-    const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-    return `${baseUrl}${url}`;
-  };
+  const total = modules.reduce((a, m) => a + (m.content?.length || 0), 0);
+  const done = Object.keys(progress).length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  // Count completed chapters for progress bar
-  const totalContent = modules.reduce((acc, m) => acc + (m.content?.length || 0), 0);
-  const completedCount = Object.keys(progress).length;
-  const completionPct = totalContent > 0 ? Math.round((completedCount / totalContent) * 100) : 0;
-
-  if (loading) return <div style={S.loading}>Loading course...</div>;
+  if (loading) return <div style={S.loading}>Loading course…</div>;
   if (!enrollment) return <div style={S.loading}>Enrollment not found</div>;
 
   return (
     <div style={S.container}>
-      {/* ── Sidebar ── */}
+      {/* Sidebar */}
       <aside style={S.sidebar}>
-        <div style={S.sidebarHeader}>
+        <div style={S.sidebarHead}>
           <button onClick={() => navigate('/candidate/my-learning')} style={S.backBtn}>
-            <BackIcon size={14} />
-            <span style={{ marginLeft: '4px' }}>Back to My Learning</span>
+            ← My Learning
           </button>
-          <h2 style={S.courseTitle}>{enrollment.course?.title || 'Course'}</h2>
-          {/* Progress bar */}
+          <h2 style={S.sidebarTitle}>{enrollment.course?.title}</h2>
           <div style={S.progressWrap}>
-            <div style={S.progressBar}>
-              <div style={{ ...S.progressFill, width: `${completionPct}%` }} />
-            </div>
-            <span style={S.progressLabel}>{completionPct}% Complete</span>
+            <div style={S.progressBar}><div style={{ ...S.progressFill, width: `${pct}%` }} /></div>
+            <span style={S.progressLabel}>{pct}% Complete</span>
           </div>
         </div>
-
-        <div style={S.modulesList}>
-          {modules.map((module, mIdx) => (
-            <div key={module._id} style={S.moduleGroup}>
-              <div style={S.moduleHeader}>
-                <span style={S.moduleNum}>Module {mIdx + 1}</span>
-                <span style={S.moduleTitle}>{module.title}</span>
+        <div style={S.moduleList}>
+          {modules.map((mod, mi) => (
+            <div key={mod._id} style={S.modGroup}>
+              <div style={S.modHeader}>
+                <span style={S.modNum}>Module {mi + 1}</span>
+                <span style={S.modTitle}>{mod.title}</span>
               </div>
-              {module.content && module.content.map((content) => {
-                const isActive = currentContent?._id === content._id;
-                const isDone = !!progress[content._id];
-                const isMedia = content.type === 'video' || content.type === 'video_upload';
-                const isDoc = content.type === 'notes_upload' || content.type === 'pdf';
+              {mod.content?.map(c => {
+                const isActive = current?._id === c._id;
+                const isDone = !!progress[c._id];
                 return (
-                  <div
-                    key={content._id}
-                    onClick={() => handleContentClick(module, content)}
-                    style={isActive ? S.chapterActive : isDone ? S.chapterDone : S.chapter}
-                  >
-                    <span style={S.chapterIcon}>
-                      {isDone
-                        ? <CheckCircleIcon size={15} color={isActive ? '#fff' : '#10b981'} />
-                        : isMedia
-                          ? <VideoIcon size={14} color={isActive ? '#fff' : '#6366f1'} />
-                          : isDoc
-                            ? <DocumentIcon size={14} color={isActive ? '#fff' : '#94a3b8'} />
-                            : <LinkIcon size={14} color={isActive ? '#fff' : '#94a3b8'} />}
-                    </span>
-                    <span style={S.chapterLabel}>{content.title}</span>
+                  <div key={c._id} onClick={() => handleSelect(mod, c)}
+                    style={{ ...S.chapter, ...(isActive ? S.chapterActive : isDone ? S.chapterDone : {}) }}>
+                    <span style={S.chapterIcon}>{isDone ? '✓' : (TYPE_ICON[c.type] || '•')}</span>
+                    <span style={S.chapterLabel}>{c.title}</span>
                   </div>
                 );
               })}
@@ -190,68 +153,57 @@ export default function LearningInterface() {
         </div>
       </aside>
 
-      {/* ── Main Content ── */}
+      {/* Main */}
       <main style={S.main}>
-        {currentContent ? (
+        {current ? (
           <>
-            <div style={S.contentHeader}>
+            <div style={S.contentHead}>
               <div>
-                <p style={S.breadcrumb}>{currentModule?.title}</p>
-                <h1 style={S.contentTitle}>{currentContent.title}</h1>
+                <p style={S.breadcrumb}>{currentMod?.title}</p>
+                <h1 style={S.contentTitle}>{current.title}</h1>
               </div>
               <button
                 onClick={markComplete}
-                disabled={!!progress[currentContent._id]}
-                style={progress[currentContent._id] ? S.completeBtnDone : S.completeBtn}
+                disabled={!!progress[current._id]}
+                style={progress[current._id] ? S.doneBtnDone : S.doneBtn}
               >
-                {progress[currentContent._id] ? 'Completed' : 'Mark Complete'}
+                {progress[current._id] ? '✓ Completed' : 'Mark Complete'}
               </button>
             </div>
 
             <div style={S.contentBody}>
-              {currentContent.description && (
-                <p style={S.description}>{currentContent.description}</p>
-              )}
+              {current.description && <p style={S.desc}>{current.description}</p>}
 
-              {(currentContent.type === 'video' || currentContent.type === 'video_upload') && currentContent.data?.url && (() => {
-                const url = resolveUrl(currentContent.data.url);
+              {(current.type === 'video' || current.type === 'video_upload') && current.data?.url && (() => {
+                const url = resolveUrl(current.data.url);
                 const isYT = url.includes('youtube.com') || url.includes('youtu.be');
                 return (
-                  <div style={S.videoWrapper}>
-                    {isYT ? (
-                      <iframe
-                        width="100%" height="500"
-                        src={getYoutubeEmbedUrl(url)}
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        style={S.video}
-                      />
-                    ) : (
-                      <video controls style={S.video} src={url} key={url} />
-                    )}
+                  <div style={S.videoWrap}>
+                    {isYT
+                      ? <iframe src={getYTEmbed(url)} style={S.video} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen frameBorder="0" />
+                      : <video controls style={S.video} src={url} key={url} />}
                   </div>
                 );
               })()}
 
-              {currentContent.type === 'notes_upload' && currentContent.data?.url && (
-                <div style={S.linkBox}>
-                  <p style={S.linkLabel}>Resource Attachment</p>
-                  <a href={resolveUrl(currentContent.data.url)} target="_blank" rel="noopener noreferrer" style={S.extLink}>
-                    View File: {currentContent.data.filename || 'Download'}
+              {current.type === 'notes_upload' && current.data?.url && (
+                <div style={S.resourceBox}>
+                  <p style={S.resourceLabel}>Resource Attachment</p>
+                  <a href={resolveUrl(current.data.url)} target="_blank" rel="noopener noreferrer" style={S.resourceLink}>
+                    📎 {current.data.filename || 'Download File'}
                   </a>
                 </div>
               )}
 
-              {currentContent.type === 'text' && currentContent.data?.htmlContent && (
-                <div style={S.textContent} dangerouslySetInnerHTML={{ __html: currentContent.data.htmlContent }} />
+              {current.type === 'text' && current.data?.htmlContent && (
+                <div style={S.textContent} dangerouslySetInnerHTML={{ __html: current.data.htmlContent }} />
               )}
 
-              {currentContent.type === 'link' && currentContent.data?.externalUrl && (
-                <div style={S.linkBox}>
-                  <p style={S.linkLabel}>External Resource</p>
-                  <a href={currentContent.data.externalUrl} target="_blank" rel="noopener noreferrer" style={S.extLink}>
-                    {currentContent.data.externalUrl}
+              {current.type === 'link' && current.data?.externalUrl && (
+                <div style={S.resourceBox}>
+                  <p style={S.resourceLabel}>External Resource</p>
+                  <a href={current.data.externalUrl} target="_blank" rel="noopener noreferrer" style={S.resourceLink}>
+                    🔗 {current.data.externalUrl}
                   </a>
                 </div>
               )}
@@ -259,63 +211,94 @@ export default function LearningInterface() {
           </>
         ) : (
           <div style={S.empty}>
-            <BookOpenIcon size={52} color='#334155' />
-            <h3 style={{ color: '#475569', fontWeight: 600, margin: 0 }}>Select a chapter to start learning</h3>
+            <div style={S.emptyIcon}>📖</div>
+            <p style={S.emptyText}>Select a chapter to start learning</p>
           </div>
         )}
       </main>
+
+      {/* AI Assistant */}
+      <button onClick={() => setAiOpen(o => !o)} style={S.aiTrigger} title="AI Learning Assistant">
+        {aiOpen ? '✕' : '✦'} {aiOpen ? 'Close' : 'AI Help'}
+      </button>
+      {aiOpen && (
+        <div style={S.aiWindow}>
+          <div style={S.aiHead}>
+            <span style={S.aiTitle}>AI Learning Assistant</span>
+            <span style={S.aiOnline}>● Online</span>
+          </div>
+          <div style={S.aiMessages}>
+            {aiMessages.map((m, i) => (
+              <div key={i} style={{ ...S.bubble, alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', background: m.role === 'user' ? 'linear-gradient(135deg, #6366f1, #22d3ee)' : 'rgba(255,255,255,0.06)', color: m.role === 'user' ? 'white' : 'var(--text-primary)' }}>
+                {m.text}
+              </div>
+            ))}
+            {aiLoading && <div style={S.typing}>Thinking…</div>}
+            <div ref={aiEndRef} />
+          </div>
+          <form onSubmit={sendAi} style={S.aiForm}>
+            <input value={aiInput} onChange={e => setAiInput(e.target.value)} placeholder="Ask a question…" style={S.aiInput} disabled={aiLoading} />
+            <button type="submit" disabled={aiLoading} style={S.aiSend}>→</button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
 
 const S = {
-  container: { display: 'flex', height: '100vh', background: '#0f172a', fontFamily: "'Inter', sans-serif", overflow: 'hidden' },
-  loading: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#94a3b8', fontSize: '18px', background: '#0f172a' },
+  container: { display: 'flex', height: '100vh', background: 'var(--bg-base)', overflow: 'hidden', position: 'relative' },
+  loading: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--text-secondary)', fontSize: 18 },
 
-  // Sidebar
-  sidebar: { width: '320px', minWidth: '320px', background: '#1e293b', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column', height: '100vh', overflowY: 'hidden' },
-  sidebarHeader: { padding: '1.5rem', borderBottom: '1px solid #334155', background: '#1e293b', flexShrink: 0 },
-  backBtn: { background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '13px', fontWeight: '600', padding: '0 0 1rem 0', display: 'block', letterSpacing: '0.01em' },
-  courseTitle: { fontSize: '16px', fontWeight: '700', color: '#f1f5f9', lineHeight: '1.5', marginBottom: '1rem' },
-  progressWrap: { display: 'flex', flexDirection: 'column', gap: '6px' },
-  progressBar: { height: '6px', background: '#334155', borderRadius: '3px', overflow: 'hidden' },
-  progressFill: { height: '100%', background: 'linear-gradient(90deg, #6366f1, #8b5cf6)', borderRadius: '3px', transition: 'width 0.4s ease' },
-  progressLabel: { fontSize: '12px', color: '#64748b', fontWeight: '600' },
+  sidebar: { width: 300, minWidth: 300, background: 'var(--bg-surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' },
+  sidebarHead: { padding: '1.25rem', borderBottom: '1px solid var(--border)', flexShrink: 0 },
+  backBtn: { background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '0 0 0.75rem', display: 'block' },
+  sidebarTitle: { fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.5, marginBottom: '0.875rem' },
+  progressWrap: { display: 'flex', flexDirection: 'column', gap: 5 },
+  progressBar: { height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' },
+  progressFill: { height: '100%', background: 'linear-gradient(90deg, #6366f1, #22d3ee)', borderRadius: 99, transition: 'width 0.4s ease' },
+  progressLabel: { fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 },
 
-  modulesList: { padding: '1rem', overflowY: 'auto', flex: 1 },
-  moduleGroup: { marginBottom: '1.5rem' },
-  moduleHeader: { display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '0.5rem', paddingLeft: '8px' },
-  moduleNum: { fontSize: '10px', fontWeight: '700', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.08em' },
-  moduleTitle: { fontSize: '13px', fontWeight: '600', color: '#94a3b8' },
+  moduleList: { padding: '0.75rem', overflowY: 'auto', flex: 1 },
+  modGroup: { marginBottom: '1.25rem' },
+  modHeader: { paddingLeft: 8, marginBottom: '0.4rem' },
+  modNum: { display: 'block', fontSize: 10, fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.08em' },
+  modTitle: { display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' },
+  chapter: { display: 'flex', alignItems: 'center', gap: 8, padding: '0.55rem 0.75rem', borderRadius: 8, cursor: 'pointer', marginBottom: 2, transition: 'background 0.15s' },
+  chapterActive: { background: 'linear-gradient(135deg, #6366f1, #22d3ee)', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' },
+  chapterDone: { background: 'rgba(16,185,129,0.1)' },
+  chapterIcon: { fontSize: 11, width: 16, textAlign: 'center', flexShrink: 0, color: 'var(--text-muted)' },
+  chapterLabel: { fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.4, fontWeight: 500 },
 
-  chapter: { display: 'flex', alignItems: 'center', gap: '10px', padding: '0.6rem 0.75rem', borderRadius: '8px', cursor: 'pointer', marginBottom: '3px', transition: 'background 0.15s' },
-  chapterActive: { display: 'flex', alignItems: 'center', gap: '10px', padding: '0.6rem 0.75rem', borderRadius: '8px', cursor: 'pointer', marginBottom: '3px', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' },
-  chapterDone: { display: 'flex', alignItems: 'center', gap: '10px', padding: '0.6rem 0.75rem', borderRadius: '8px', cursor: 'pointer', marginBottom: '3px', background: 'rgba(16,185,129,0.12)' },
-  chapterIcon: { fontSize: '12px', color: '#64748b', width: '16px', textAlign: 'center', flexShrink: 0 },
-  chapterLabel: { fontSize: '14px', color: '#cbd5e1', lineHeight: '1.4', fontWeight: '500' },
+  main: { flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' },
+  contentHead: { background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', padding: '1.25rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 5, flexShrink: 0 },
+  breadcrumb: { fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 },
+  contentTitle: { fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' },
+  doneBtn: { padding: '0.55rem 1.25rem', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
+  doneBtnDone: { padding: '0.55rem 1.25rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'default', whiteSpace: 'nowrap' },
 
-  // Main
-  main: { flex: 1, overflowY: 'auto', background: '#0f172a', display: 'flex', flexDirection: 'column' },
-
-  contentHeader: { background: '#1e293b', borderBottom: '1px solid #334155', padding: '1.25rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 5, flexShrink: 0 },
-  breadcrumb: { fontSize: '12px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' },
-  contentTitle: { fontSize: '22px', fontWeight: '700', color: '#f1f5f9', margin: 0 },
-
-  completeBtn: { padding: '0.6rem 1.25rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', letterSpacing: '0.02em', whiteSpace: 'nowrap', flexShrink: 0 },
-  completeBtnDone: { padding: '0.6rem 1.25rem', background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'default', whiteSpace: 'nowrap', flexShrink: 0 },
-
-  contentBody: { padding: '2rem', maxWidth: '900px', width: '100%', margin: '0 auto', flex: 1 },
-  description: { fontSize: '15px', color: '#94a3b8', lineHeight: '1.7', marginBottom: '1.5rem', background: '#1e293b', padding: '1.25rem 1.5rem', borderRadius: '10px', border: '1px solid #334155' },
-
-  videoWrapper: { position: 'relative', width: '100%', paddingTop: '56.25%', background: '#000', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.4)' },
+  contentBody: { padding: '2rem', maxWidth: 900, width: '100%', margin: '0 auto', flex: 1 },
+  desc: { fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '1.5rem', background: 'var(--bg-card)', padding: '1.25rem 1.5rem', borderRadius: 10, border: '1px solid var(--border)' },
+  videoWrap: { position: 'relative', width: '100%', paddingTop: '56.25%', background: '#000', borderRadius: 12, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' },
   video: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 },
+  textContent: { fontSize: 15, lineHeight: 1.85, color: 'var(--text-secondary)', background: 'var(--bg-card)', padding: '2rem', borderRadius: 12, border: '1px solid var(--border)' },
+  resourceBox: { textAlign: 'center', padding: '3rem', background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border)' },
+  resourceLabel: { fontSize: 12, color: 'var(--text-muted)', marginBottom: '1rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' },
+  resourceLink: { display: 'inline-flex', alignItems: 'center', padding: '0.875rem 2rem', background: 'linear-gradient(135deg, #6366f1, #22d3ee)', color: 'white', textDecoration: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600 },
 
-  textContent: { fontSize: '15px', lineHeight: '1.85', color: '#cbd5e1', background: '#1e293b', padding: '2rem', borderRadius: '12px', border: '1px solid #334155' },
+  empty: { display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', flex: 1, gap: '1rem' },
+  emptyIcon: { fontSize: 48 },
+  emptyText: { fontSize: 16, color: 'var(--text-muted)', fontWeight: 500 },
 
-  linkBox: { textAlign: 'center', padding: '3rem', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155' },
-  linkLabel: { fontSize: '13px', color: '#64748b', marginBottom: '1rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' },
-  extLink: { display: 'inline-flex', alignItems: 'center', padding: '0.875rem 2rem', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: 'white', textDecoration: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600' },
-
-  empty: { display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', flex: 1, color: '#475569', gap: '1rem' },
-  emptyIcon: { fontSize: '48px' },
+  aiTrigger: { position: 'fixed', bottom: '2rem', right: '2rem', display: 'flex', alignItems: 'center', gap: 6, padding: '0.75rem 1.25rem', background: 'linear-gradient(135deg, #6366f1, #22d3ee)', color: 'white', border: 'none', borderRadius: 99, fontSize: 14, fontWeight: 700, cursor: 'pointer', zIndex: 200, boxShadow: '0 8px 24px rgba(99,102,241,0.4)' },
+  aiWindow: { position: 'fixed', bottom: '5.5rem', right: '2rem', width: 340, height: 480, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 16, display: 'flex', flexDirection: 'column', zIndex: 200, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.4)' },
+  aiHead: { padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  aiTitle: { fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' },
+  aiOnline: { fontSize: 11, color: '#10b981', fontWeight: 600 },
+  aiMessages: { flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' },
+  bubble: { maxWidth: '85%', padding: '0.75rem 1rem', borderRadius: 12, fontSize: 13, lineHeight: 1.5 },
+  typing: { alignSelf: 'flex-start', color: 'var(--text-muted)', fontSize: 12 },
+  aiForm: { padding: '0.875rem', borderTop: '1px solid var(--border)', display: 'flex', gap: 8 },
+  aiInput: { flex: 1, padding: '0.65rem 0.875rem', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: 13, outline: 'none' },
+  aiSend: { padding: '0.65rem 1rem', background: 'linear-gradient(135deg, #6366f1, #22d3ee)', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 16 },
 };

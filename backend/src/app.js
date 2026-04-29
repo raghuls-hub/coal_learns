@@ -31,16 +31,7 @@ app.use(helmet({
 
 // CORS configuration
 const allowedOrigins = [
-  process.env.ADMIN_URL,
-  process.env.TUTOR_URL,
-  process.env.APP_URL,
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:3002',
-  'http://localhost:3003',
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'https://coal-learns.vercel.app'
+  process.env.APP_URL
 ].filter(Boolean);
 
 app.use(cors({

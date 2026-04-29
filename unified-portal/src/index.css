@@ -1,88 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800&display=swap');
+
 :root {
-  /* Midnight Obsidian Theme Palette */
-  --bg-base: #0F172A;
-  --bg-sidebar: #1E293B;
-  --bg-header: #1E293B;
-  --bg-surface: #1E293B;
-  --border-dim: #334155;
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
-  --accent-primary: #38BDF8;
-  --accent-secondary: #6366F1;
-  --accent-gradient: linear-gradient(135deg, #38BDF8 0%, #6366F1 100%);
-  --accent-glow: 0 4px 20px rgba(56, 189, 248, 0.2);
-  --error: #EF4444;
+  /* Core Palette */
+  --bg-base: #060912;
+  --bg-surface: #0d1117;
+  --bg-card: #111827;
+  --bg-elevated: #161d2e;
+  --border: rgba(255,255,255,0.06);
+  --border-hover: rgba(255,255,255,0.12);
 
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  /* Text */
+  --text-primary: #f0f4ff;
+  --text-secondary: #8892a4;
+  --text-muted: #4a5568;
 
+  /* Accent — Electric Indigo + Cyan */
+  --accent: #6366f1;
+  --accent-2: #22d3ee;
+  --accent-3: #a78bfa;
+  --grad: linear-gradient(135deg, #6366f1 0%, #22d3ee 100%);
+  --grad-soft: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(34,211,238,0.08) 100%);
+  --glow: 0 0 40px rgba(99,102,241,0.25);
+  --glow-sm: 0 0 20px rgba(99,102,241,0.15);
+
+  /* Status */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+
+  font-family: 'Inter', system-ui, sans-serif;
   color-scheme: dark;
-  color: var(--text-primary);
-  background-color: var(--bg-base);
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
 
 body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  background: var(--bg-base);
+  color: var(--text-primary);
   min-height: 100vh;
-  background-color: #0F172A;
+  line-height: 1.6;
 }
 
-#root {
-  width: 100%;
+#root { width: 100%; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+/* Selection */
+::selection { background: rgba(99,102,241,0.3); color: #fff; }
+
+a { color: var(--accent-2); text-decoration: none; }
+
+/* Utility animations */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(99,102,241,0.2); }
+  50%       { box-shadow: 0 0 40px rgba(99,102,241,0.4); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-* {
-  box-sizing: border-box;
+.animate-fade-up { animation: fadeUp 0.5s ease both; }
+.animate-fade-in { animation: fadeIn 0.3s ease both; }
+
+/* Glass card */
+.glass {
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
 }
 
-/* Enforce Midnight Obsidian Theme Scrollbars */
-::-webkit-scrollbar {
-  width: 10px;
-}
-::-webkit-scrollbar-track {
-  background: #0F172A;
-}
-::-webkit-scrollbar-thumb {
-  background: #1E293B;
-  border-radius: 5px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+/* Gradient text */
+.grad-text {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-a {
-  color: #38BDF8;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #7DD3FC;
-}
-
-button {
+/* Skeleton loader */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-elevated) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
   border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #38BDF8;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
 }

@@ -9,87 +9,72 @@ export default function CertificateVerify() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    verify();
+    apiClient.get(`/certificates/${certificateId}`)
+      .then(res => { if (res.data.success) setData(res.data.data); else setError('Invalid certificate'); })
+      .catch(() => setError('Certificate not found or invalid'))
+      .finally(() => setLoading(false));
   }, [certificateId]);
 
-  const verify = async () => {
-    try {
-      // Endpoint is GET /api/certificates/:id
-      // apiClient likely has baseURL set to /api
-      const res = await apiClient.get(`/certificates/${certificateId}`);
-      if (res.data.success) {
-        setData(res.data.data);
-      } else {
-        setError('Invalid Certificate');
-      }
-    } catch (err) {
-      setError('Certificate not found or invalid');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) return <div style={styles.container}>Verifying...</div>;
-
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        {error ? (
-           <div style={styles.errorState}>
-             <h1 style={{color: '#ef4444'}}>Invalid Certificate</h1>
-             <p>{error}</p>
-           </div>
+    <div style={S.page}>
+      <div style={S.orb} />
+      <div style={S.card}>
+        <div style={S.logoMark}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Verifying certificate…</div>
+        ) : error ? (
+          <div style={S.errorState}>
+            <div style={S.errorIcon}>✕</div>
+            <h2 style={{ color: '#f87171', fontSize: 22, fontWeight: 800, marginBottom: '0.5rem' }}>Invalid Certificate</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 15 }}>{error}</p>
+          </div>
         ) : (
-           <div style={styles.successState}>
-             <div style={styles.icon}>Verified</div>
-             <h1 style={styles.title}>Verified Certificate</h1>
-             <p style={styles.subtitle}>This certificate is valid and was issued by our platform.</p>
-             
-             <div style={styles.details}>
-               <div style={styles.row}>
-                 <span style={styles.label}>Recipient:</span>
-                 <strong style={styles.value}>{data.user.profile.firstName} {data.user.profile.lastName}</strong>
-               </div>
-               <div style={styles.row}>
-                 <span style={styles.label}>Course:</span>
-                 <strong style={styles.value}>{data.courseName || data.course?.title || 'Course Title Unavailable'}</strong>
-               </div>
-               <div style={styles.row}>
-                 <span style={styles.label}>Issue Date:</span>
-                 <span style={styles.value}>{new Date(data.issueDate).toLocaleDateString()}</span>
-               </div>
-               <div style={styles.row}>
-                 <span style={styles.label}>Instructor:</span>
-                 <span style={styles.value}>{data.instructorName || 'Platform Instructor'}</span>
-               </div>
-               <div style={styles.row}>
-                 <span style={styles.label}>Certificate ID:</span>
-                 <span style={styles.valueMono}>{data.certificateId}</span>
-               </div>
-             </div>
-             
-             <div style={styles.footer}>
-               <p>Antigravity LMS Verification System</p>
-             </div>
-           </div>
+          <div style={S.successState}>
+            <div style={S.successIcon}>✓</div>
+            <h2 style={S.successTitle}>Verified Certificate</h2>
+            <p style={S.successSub}>This certificate is authentic and was issued by Coal Learns.</p>
+            <div style={S.details}>
+              {[
+                ['Recipient', `${data.user?.profile?.firstName} ${data.user?.profile?.lastName}`],
+                ['Course', data.courseName || data.course?.title || 'N/A'],
+                ['Instructor', data.instructorName || 'Platform Instructor'],
+                ['Issue Date', new Date(data.issueDate).toLocaleDateString()],
+                ['Certificate ID', data.certificateId],
+              ].map(([label, value]) => (
+                <div key={label} style={S.row}>
+                  <span style={S.rowLabel}>{label}</span>
+                  <span style={label === 'Certificate ID' ? S.rowMono : S.rowValue}>{value}</span>
+                </div>
+              ))}
+            </div>
+            <p style={S.footer}>Coal Learns Verification System · Powered by Antigravity</p>
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-const styles = {
-  container: { background: '#f1f5f9', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', fontFamily: "'Inter', sans-serif" },
-  card: { background: 'white', padding: '3rem', borderRadius: '16px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', maxWidth: '500px', width: '90%' },
+const S = {
+  page: { minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '2rem', position: 'relative', overflow: 'hidden' },
+  orb: { position: 'fixed', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%)', top: -150, left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none' },
+  card: { background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: '3rem', maxWidth: 500, width: '100%', position: 'relative', zIndex: 1 },
+  logoMark: { width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg, #6366f1, #22d3ee)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '2rem' },
   errorState: { textAlign: 'center' },
+  errorIcon: { width: 64, height: 64, borderRadius: '50%', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: '#f87171', margin: '0 auto 1.5rem' },
   successState: { textAlign: 'center' },
-  icon: { fontSize: '48px', marginBottom: '1rem' },
-  title: { fontSize: '24px', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem' },
-  subtitle: { color: '#64748b', fontSize: '15px', marginBottom: '2rem' },
-  details: { textAlign: 'left', background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' },
-  row: { display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' },
-  label: { color: '#64748b', fontSize: '14px', fontWeight: '500' },
-  value: { color: '#0f172a', fontWeight: '600', fontSize: '15px' },
-  valueMono: { fontFamily: 'monospace', color: '#64748b', fontSize: '13px' },
-  footer: { marginTop: '2rem', fontSize: '12px', color: '#94a3b8' }
+  successIcon: { width: 64, height: 64, borderRadius: '50%', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: '#10b981', margin: '0 auto 1.5rem' },
+  successTitle: { fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem', letterSpacing: '-0.02em' },
+  successSub: { fontSize: 14, color: 'var(--text-secondary)', marginBottom: '2rem' },
+  details: { textAlign: 'left', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, padding: '1.5rem', marginBottom: '1.5rem' },
+  row: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', paddingBottom: '0.875rem', marginBottom: '0.875rem', borderBottom: '1px solid var(--border)' },
+  rowLabel: { fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, flexShrink: 0 },
+  rowValue: { fontSize: 14, color: 'var(--text-primary)', fontWeight: 600, textAlign: 'right' },
+  rowMono: { fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'monospace', textAlign: 'right', wordBreak: 'break-all' },
+  footer: { fontSize: 12, color: 'var(--text-muted)' },
 };

@@ -7,121 +7,114 @@ export default function CoursePreview() {
   const { courseId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  
   const [course, setCourse] = useState(null);
   const [modules, setModules] = useState([]);
+  const [enrollment, setEnrollment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
-  const [enrollment, setEnrollment] = useState(null);
 
   useEffect(() => {
-    fetchCourseDetails();
-  }, [courseId]);
-
-  const fetchCourseDetails = async () => {
-    try {
-      const [courseRes, modulesRes] = await Promise.all([
-        apiClient.get(`/courses/${courseId}`),
-        apiClient.get(`/courses/${courseId}/modules`)
-      ]);
-      
-      setCourse(courseRes.data.data);
-      setModules(modulesRes.data.data || []);
-      
-      // Check if already enrolled
-      if (user) {
-        try {
-          const enrollmentsRes = await apiClient.get('/enrollments/my-courses');
-          const existingEnrollment = enrollmentsRes.data.data?.find(
-            e => e.course._id === courseId
-          );
-          setEnrollment(existingEnrollment);
-        } catch (error) {
-          console.error('Failed to check enrollment:', error);
+    const load = async () => {
+      try {
+        const [cRes, mRes] = await Promise.all([
+          apiClient.get(`/courses/${courseId}`),
+          apiClient.get(`/courses/${courseId}/modules`),
+        ]);
+        setCourse(cRes.data.data);
+        setModules(mRes.data.data || []);
+        if (user) {
+          const eRes = await apiClient.get('/enrollments/my-courses').catch(() => ({ data: { data: [] } }));
+          const found = eRes.data.data?.find(e => e.course?._id === courseId || e.course === courseId);
+          setEnrollment(found || null);
         }
-      }
-    } catch (error) {
-      console.error('Failed to fetch course:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      } catch {}
+      finally { setLoading(false); }
+    };
+    load();
+  }, [courseId, user]);
 
   const handleEnroll = async () => {
-    if (!user) {
-      navigate('/candidate/login');
-      return;
-    }
-
+    if (!user) return navigate('/candidate/login');
     setEnrolling(true);
     try {
       const res = await apiClient.post('/enrollments', { courseId });
-      setEnrollment(res.data.data);
-      alert('Successfully enrolled! Redirecting to learning...');
       navigate(`/candidate/learning/${res.data.data._id}`);
-    } catch (error) {
-      alert(error.response?.data?.message || 'Enrollment failed');
-    } finally {
-      setEnrolling(false);
-    }
+    } catch {}
+    finally { setEnrolling(false); }
   };
 
-  if (loading) return <div style={styles.loading}>Loading...</div>;
-  if (!course) return <div style={styles.loading}>Course not found</div>;
+  if (loading) return <div style={S.loading}><div className="skeleton" style={{ width: 200, height: 20 }} /></div>;
+  if (!course) return <div style={S.loading}>Course not found</div>;
+
+  const totalChapters = modules.reduce((a, m) => a + (m.content?.length || 0), 0);
 
   return (
-    <div style={styles.container}>
-      <button onClick={() => navigate('/candidate/catalog')} style={styles.backBtn}>Back to Catalog</button>
-      
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.title}>{course.title}</h1>
-          <p style={styles.description}>{course.description}</p>
-          <div style={styles.meta}>
-            <span style={styles.badge}>{course.category}</span>
-            <span style={styles.badge}>{course.level}</span>
-            <span style={styles.badge}>{modules.length} Modules</span>
-          </div>
-        </div>
-        
-        <div style={styles.actionCard}>
-          <div style={styles.price}>
-            {course.pricing?.amount > 0 ? `$${course.pricing.amount}` : 'Free'}
-          </div>
-          {enrollment ? (
-            <button 
-              onClick={() => navigate(`/candidate/learning/${enrollment._id}`)}
-              style={styles.enrolledBtn}
-            >
-              Continue Learning
+    <div style={S.page}>
+      {/* Hero */}
+      <div style={S.hero}>
+        <div style={S.heroOrb} />
+        <div style={S.heroInner}>
+          <div style={S.heroLeft}>
+            <button onClick={() => navigate('/candidate/catalog')} style={S.backBtn}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Back to Catalog
             </button>
-          ) : (
-            <button 
-              onClick={handleEnroll}
-              disabled={enrolling}
-              style={styles.enrollBtn}
-            >
-              {enrolling ? 'Enrolling...' : 'Enroll Now'}
-            </button>
-          )}
+            <div style={S.metaRow}>
+              <span style={S.categoryBadge}>{course.category}</span>
+              <span style={S.levelBadge}>{course.level}</span>
+              <span style={S.modulesBadge}>{modules.length} Modules · {totalChapters} Chapters</span>
+            </div>
+            <h1 style={S.heroTitle}>{course.title}</h1>
+            <p style={S.heroDesc}>{course.description}</p>
+            {course.courseHandler && (
+              <p style={S.instructor}>
+                By <strong style={{ color: 'var(--text-primary)' }}>
+                  {course.courseHandler.profile?.firstName} {course.courseHandler.profile?.lastName}
+                </strong>
+              </p>
+            )}
+          </div>
+
+          {/* Enroll Card */}
+          <div style={S.enrollCard}>
+            <div style={S.priceDisplay}>
+              {course.pricing?.amount > 0
+                ? <><span style={S.priceAmount}>₹{course.pricing.amount}</span></>
+                : <span style={{ ...S.priceAmount, color: '#10b981' }}>Free</span>}
+            </div>
+            {enrollment ? (
+              <button onClick={() => navigate(`/candidate/learning/${enrollment._id}`)} style={S.enrolledBtn}>
+                Continue Learning →
+              </button>
+            ) : (
+              <button onClick={handleEnroll} disabled={enrolling} style={S.enrollBtn}>
+                {enrolling ? 'Enrolling...' : course.pricing?.amount > 0 ? 'Enroll Now' : 'Start Free'}
+              </button>
+            )}
+            <div style={S.includes}>
+              {[`${modules.length} structured modules`, `${totalChapters} chapters`, 'Verified certificate', 'Lifetime access'].map(item => (
+                <div key={item} style={S.includeItem}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div style={styles.modulesSection}>
-        <h2 style={styles.sectionTitle}>Course Curriculum</h2>
-        <div style={styles.modulesList}>
-          {modules.map((module, index) => (
-            <div key={module._id} style={styles.moduleCard}>
-              <div style={styles.moduleHeader}>
-                <span style={styles.moduleNumber}>Module {index + 1}</span>
-                <h3 style={styles.moduleTitle}>{module.title}</h3>
+      {/* Curriculum */}
+      <div style={S.body}>
+        <h2 style={S.sectionTitle}>Course Curriculum</h2>
+        <div style={S.moduleList}>
+          {modules.map((mod, i) => (
+            <div key={mod._id} style={S.moduleCard}>
+              <div style={S.moduleHeader}>
+                <span style={S.moduleNum}>Module {i + 1}</span>
+                <h3 style={S.moduleTitle}>{mod.title}</h3>
+                <span style={S.moduleCount}>{mod.content?.length || 0} chapters</span>
               </div>
-              {module.description && (
-                <p style={styles.moduleDesc}>{module.description}</p>
-              )}
-              <div style={styles.moduleInfo}>
-                <span>{module.content?.length || 0} chapters</span>
-              </div>
+              {mod.description && <p style={S.moduleDesc}>{mod.description}</p>}
             </div>
           ))}
         </div>
@@ -130,166 +123,37 @@ export default function CoursePreview() {
   );
 }
 
-const styles = {
-  container: { 
-    padding: '2rem', 
-    maxWidth: '1200px', 
-    margin: '0 auto', 
-    minHeight: '100vh', 
-    background: 'var(--bg-base)',
-    color: 'var(--text-primary)' 
-  },
-  loading: { 
-    textAlign: 'center', 
-    padding: '3rem', 
-    fontSize: '18px',
-    color: 'var(--text-secondary)'
-  },
-  backBtn: { 
-    marginBottom: '2rem', 
-    padding: '0.5rem 1rem', 
-    background: 'none', 
-    border: 'none', 
-    color: 'var(--accent-primary)',
-    cursor: 'pointer', 
-    fontSize: '14px', 
-    fontWeight: '600',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    transition: 'all 0.2s'
-  },
-  header: { 
-    display: 'flex', 
-    gap: '3rem', 
-    marginBottom: '3rem', 
-    background: 'var(--bg-sidebar)',
-    padding: '2.5rem', 
-    borderRadius: '16px', 
-    border: '1px solid var(--border-dim)',
-    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)' 
-  },
-  title: { 
-    fontSize: '36px', 
-    fontWeight: '800', 
-    color: 'var(--text-primary)', 
-    marginBottom: '1rem',
-    letterSpacing: '-0.025em'
-  },
-  description: { 
-    fontSize: '17px', 
-    color: 'var(--text-secondary)', 
-    lineHeight: '1.7', 
-    marginBottom: '1.5rem',
-    maxWidth: '800px'
-  },
-  meta: { 
-    display: 'flex', 
-    gap: '0.75rem', 
-    flexWrap: 'wrap' 
-  },
-  badge: { 
-    padding: '0.5rem 1rem', 
-    background: 'rgba(56, 189, 248, 0.15)', 
-    color: 'var(--accent-primary)', 
-    fontSize: '13px', 
-    fontWeight: '600', 
-    borderRadius: '8px', 
-    textTransform: 'capitalize',
-    border: '1px solid var(--border-dim)'
-  },
-  actionCard: { 
-    minWidth: '280px', 
-    display: 'flex', 
-    flexDirection: 'column', 
-    gap: '1.5rem',
-    padding: '1.5rem',
-    background: 'rgba(15, 23, 42, 0.5)',
-    borderRadius: '12px',
-    border: '1px solid rgba(255, 255, 255, 0.05)',
-    justifyContent: 'center'
-  },
-  price: { 
-    fontSize: '38px', 
-    fontWeight: '800', 
-    color: '#f59e0b', // Gold
-    textAlign: 'center' 
-  },
-  enrollBtn: { 
-    padding: '1rem', 
-    background: 'var(--accent-gradient)', 
-    color: 'white', 
-    border: 'none', 
-    borderRadius: '10px', 
-    fontSize: '16px', 
-    fontWeight: '700', 
-    cursor: 'pointer',
-    boxShadow: 'var(--accent-glow)',
-    transition: 'transform 0.2s'
-  },
-  enrolledBtn: { 
-    padding: '1rem', 
-    background: 'rgba(16, 185, 129, 0.15)', 
-    color: '#10b981', 
-    border: '1px solid rgba(16, 185, 129, 0.3)', 
-    borderRadius: '10px', 
-    fontSize: '16px', 
-    fontWeight: '700', 
-    cursor: 'pointer' 
-  },
-  modulesSection: { 
-    marginTop: '2rem' 
-  },
-  sectionTitle: { 
-    fontSize: '26px', 
-    fontWeight: '700', 
-    color: '#ffffff', 
-    marginBottom: '2rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem'
-  },
-  modulesList: { 
-    display: 'flex', 
-    flexDirection: 'column', 
-    gap: '1.25rem' 
-  },
-  moduleCard: { 
-    background: 'var(--bg-sidebar)', 
-    padding: '1.75rem', 
-    borderRadius: '14px', 
-    border: '1px solid var(--border-dim)',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    transition: 'all 0.3s'
-  },
-  moduleHeader: { 
-    marginBottom: '1rem' 
-  },
-  moduleNumber: { 
-    fontSize: '12px', 
-    color: '#f59e0b', 
-    fontWeight: '800', 
-    textTransform: 'uppercase', 
-    display: 'block', 
-    marginBottom: '0.5rem',
-    letterSpacing: '0.1em'
-  },
-  moduleTitle: { 
-    fontSize: '20px', 
-    fontWeight: '600', 
-    color: '#f1f5f9' 
-  },
-  moduleDesc: { 
-    fontSize: '15px', 
-    color: '#94a3b8', 
-    marginBottom: '1.25rem', 
-    lineHeight: '1.6' 
-  },
-  moduleInfo: { 
-    fontSize: '13px', 
-    color: '#64748b',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem'
-  },
+const S = {
+  page: { minHeight: '100vh', background: 'var(--bg-base)' },
+  loading: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: 'var(--text-secondary)' },
+  hero: { position: 'relative', overflow: 'hidden', borderBottom: '1px solid var(--border)', padding: '3rem 2rem' },
+  heroOrb: { position: 'absolute', width: 600, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(99,102,241,0.1) 0%, transparent 70%)', top: -100, right: -100, pointerEvents: 'none' },
+  heroInner: { position: 'relative', zIndex: 1, maxWidth: 1100, margin: '0 auto', display: 'flex', gap: '3rem', alignItems: 'flex-start', flexWrap: 'wrap' },
+  heroLeft: { flex: 1, minWidth: 300 },
+  backBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: '0.4rem 0', marginBottom: '1.5rem' },
+  metaRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '1.25rem' },
+  categoryBadge: { fontSize: 12, fontWeight: 600, color: '#818cf8', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 99, padding: '3px 10px' },
+  levelBadge: { fontSize: 12, fontWeight: 600, color: '#22d3ee', background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.2)', borderRadius: 99, padding: '3px 10px', textTransform: 'capitalize' },
+  modulesBadge: { fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 99, padding: '3px 10px' },
+  heroTitle: { fontSize: 'clamp(1.75rem, 4vw, 2.75rem)', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1.2, marginBottom: '1rem' },
+  heroDesc: { fontSize: 16, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '1rem', maxWidth: 600 },
+  instructor: { fontSize: 14, color: 'var(--text-secondary)' },
+
+  enrollCard: { width: 300, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', flexShrink: 0 },
+  priceDisplay: { textAlign: 'center' },
+  priceAmount: { fontSize: 36, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.03em' },
+  enrollBtn: { padding: '0.875rem', background: 'linear-gradient(135deg, #6366f1, #22d3ee)', color: 'white', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 8px 24px rgba(99,102,241,0.3)' },
+  enrolledBtn: { padding: '0.875rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer' },
+  includes: { display: 'flex', flexDirection: 'column', gap: 10 },
+  includeItem: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 },
+
+  body: { maxWidth: 1100, margin: '0 auto', padding: '3rem 2rem' },
+  sectionTitle: { fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: '1.5rem' },
+  moduleList: { display: 'flex', flexDirection: 'column', gap: '1rem' },
+  moduleCard: { background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: '3px solid #6366f1', borderRadius: 12, padding: '1.5rem' },
+  moduleHeader: { display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' },
+  moduleNum: { fontSize: 11, fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.08em' },
+  moduleTitle: { fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', flex: 1 },
+  moduleCount: { fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 },
+  moduleDesc: { fontSize: 14, color: 'var(--text-secondary)', marginTop: '0.75rem', lineHeight: 1.6 },
 };

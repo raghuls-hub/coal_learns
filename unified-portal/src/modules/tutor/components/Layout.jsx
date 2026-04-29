@@ -1,282 +1,105 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  MenuIcon,
-  DashboardIcon,
-  CoursesIcon,
-  CreateIcon,
-  LogoutIcon,
-  SettingsIcon,
-} from './Icons';
 
-export default function Layout({ children }) {
+const NAV = [
+  { path: '/tutor/dashboard', label: 'Dashboard', icon: '⬡' },
+  { path: '/tutor/my-courses', label: 'My Courses', icon: '◫' },
+  { path: '/tutor/create-course', label: 'Create Course', icon: '+' },
+  { path: '/tutor/settings', label: 'Settings', icon: '⚙' },
+];
+
+export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
 
-  const menuItems = [
-    { path: '/tutor/dashboard', label: 'Dashboard', icon: DashboardIcon },
-    { path: '/tutor/my-courses', label: 'My Courses', icon: CoursesIcon },
-    { path: '/tutor/create-course', label: 'Create Course', icon: CreateIcon },
-    { path: '/tutor/settings', label: 'Settings', icon: SettingsIcon },
-  ];
-
-  const handleLogout = () => {
-    logout();
-    navigate('/tutor/login');
-  };
+  const isActive = (p) => location.pathname === p;
+  const pageLabel = NAV.find(n => n.path === location.pathname)?.label || 'Portal';
 
   return (
-    <div style={styles.container}>
+    <div style={S.root}>
       {/* Sidebar */}
-      <aside style={{ ...styles.sidebar, width: isSidebarOpen ? '260px' : '80px' }}>
-        <div style={styles.logoArea}>
-          <div style={styles.logoText}>
-            {isSidebarOpen ? 'MentorPortal' : 'MP'}
+      <aside style={{ ...S.sidebar, width: collapsed ? 72 : 240 }}>
+        <div style={S.sidebarTop}>
+          <div style={S.brand}>
+            <div style={S.brandMark}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            {!collapsed && <span style={S.brandName}>MentorPortal</span>}
           </div>
         </div>
 
-        <nav style={styles.nav}>
-          {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            const IconComp = item.icon;
-            return (
-              <div
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                style={{
-                  ...styles.navItem,
-                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-                  color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                  border: isActive ? '1px solid rgba(99, 102, 241, 0.2)' : '1px solid transparent',
-                  boxShadow: isActive ? 'var(--accent-glow)' : 'none',
-                }}
-              >
-                <span style={{
-                  ...styles.icon,
-                  color: isActive ? 'var(--accent-primary)' : 'var(--text-muted)',
-                  borderColor: isActive ? 'var(--accent-primary)' : 'var(--border-dim)',
-                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.05)' : 'rgba(255, 255, 255, 0.02)',
-                }}>
-                  <IconComp size={16} color={isActive ? '#6366f1' : '#64748b'} />
-                </span>
-                {isSidebarOpen && <span style={styles.label}>{item.label}</span>}
-              </div>
-            );
-          })}
+        <nav style={S.nav}>
+          {NAV.map(({ path, label, icon }) => (
+            <div key={path} onClick={() => navigate(path)}
+              style={{ ...S.navItem, ...(isActive(path) ? S.navItemActive : {}) }}
+              title={collapsed ? label : undefined}
+            >
+              <span style={{ ...S.navIcon, ...(isActive(path) ? S.navIconActive : {}) }}>{icon}</span>
+              {!collapsed && <span style={S.navLabel}>{label}</span>}
+            </div>
+          ))}
         </nav>
 
-        <div style={styles.footer}>
-          <div 
-            onClick={handleLogout}
-            style={styles.logoutBtn}
-          >
-            <span style={{ ...styles.icon, color: 'var(--error)', borderColor: 'rgba(239,68,68,0.3)' }}>
-              <LogoutIcon size={16} color='#ef4444' />
-            </span>
-            {isSidebarOpen && <span>Logout</span>}
+        <div style={S.sidebarFoot}>
+          <div onClick={() => { logout(); navigate('/tutor/login'); }} style={S.logoutItem} title={collapsed ? 'Logout' : undefined}>
+            <span style={{ ...S.navIcon, color: '#f87171', borderColor: 'rgba(239,68,68,0.2)' }}>⏻</span>
+            {!collapsed && <span style={{ color: '#f87171', fontSize: 14, fontWeight: 600 }}>Logout</span>}
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main style={styles.main}>
-        <header style={styles.header}>
-          <div style={styles.headerLeft}>
-            <button 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              style={styles.toggleBtn}
-              title={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-            >
-              <MenuIcon size={18} color='var(--text-secondary)' />
+      {/* Main */}
+      <div style={S.main}>
+        <header style={S.header}>
+          <div style={S.headerLeft}>
+            <button onClick={() => setCollapsed(c => !c)} style={S.toggleBtn} title="Toggle sidebar">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
             </button>
-            <h2 style={styles.pageTitle}>
-              {menuItems.find(m => m.path === location.pathname)?.label || 'Portal'}
-            </h2>
+            <h2 style={S.pageTitle}>{pageLabel}</h2>
           </div>
-          <div style={styles.userInfo}>
-            <span style={styles.welcome}>Welcome, <b>{user?.profile?.firstName || 'Mentor'}</b></span>
-            <div style={styles.avatar}>
-              {user?.profile?.firstName?.[0] || 'M'}
-            </div>
+          <div style={S.userChip}>
+            <span style={S.welcome}>Welcome, <strong>{user?.profile?.firstName || 'Mentor'}</strong></span>
+            <div style={S.avatar}>{(user?.profile?.firstName?.[0] || 'M').toUpperCase()}</div>
           </div>
         </header>
-
-        <div style={styles.content}>
-          {children || <Outlet />}
+        <div style={S.content}>
+          <Outlet />
         </div>
-      </main>
+      </div>
     </div>
   );
 }
 
-const styles = {
-  container: {
-    display: 'flex',
-    minHeight: '100vh',
-    fontFamily: "'Inter', sans-serif",
-    backgroundColor: 'var(--bg-base)',
-  },
-  sidebar: {
-    backgroundColor: 'var(--bg-sidebar)',
-    borderRight: '1px solid var(--border-dim)',
-    display: 'flex',
-    flexDirection: 'column',
-    transition: 'width-0.3s-ease',
-    position: 'sticky',
-    top: 0,
-    height: '100vh',
-    zIndex: 10,
-    overflowX: 'hidden',
-    boxShadow: '4px 0 24px rgba(0,0,0,0.2)',
-  },
-  logoArea: {
-    padding: '1.5rem',
-    borderBottom: '1px solid var(--border-dim)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '80px',
-  },
-  logoText: {
-    fontSize: '22px',
-    fontWeight: '900',
-    background: 'var(--accent-gradient)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    whiteSpace: 'nowrap',
-    letterSpacing: '-0.02em',
-  },
-  nav: {
-    flex: 1,
-    padding: '1.5rem 0.75rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.4rem',
-  },
-  navItem: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0.85rem 1.25rem',
-    cursor: 'pointer',
-    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-    fontSize: '15px',
-    fontWeight: '600',
-    whiteSpace: 'nowrap',
-    borderRadius: '12px',
-    margin: '0 0.5rem',
-  },
-  icon: {
-    fontSize: '11px',
-    marginRight: '12px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '28px',
-    height: '28px',
-    fontWeight: '800',
-    borderRadius: '8px',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    border: '1px solid var(--border-dim)',
-    transition: 'all 0.2s',
-  },
-  label: {
-    opacity: 1,
-    transition: 'opacity 0.2s',
-  },
-  footer: {
-    padding: '1.25rem',
-    borderTop: '1px solid var(--border-dim)',
-  },
-  logoutBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0.85rem',
-    color: 'var(--error)',
-    cursor: 'pointer',
-    borderRadius: '12px',
-    transition: 'all 0.2s',
-    whiteSpace: 'nowrap',
-    border: '1px solid rgba(239, 68, 68, 0.1)',
-    background: 'rgba(239, 68, 68, 0.02)',
-    fontSize: '14px',
-    fontWeight: '700',
-  },
-  main: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-  },
-  header: {
-    height: '80px',
-    backgroundColor: 'var(--bg-header)',
-    borderBottom: '1px solid var(--border-dim)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 2.5rem',
-    position: 'sticky',
-    top: 0,
-    zIndex: 5,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-  },
-  headerLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1.25rem',
-  },
-  toggleBtn: {
-    background: 'var(--bg-base)',
-    border: '1px solid var(--border-dim)',
-    width: '36px',
-    height: '36px',
-    borderRadius: '10px',
-    fontSize: '18px',
-    cursor: 'pointer',
-    color: 'var(--text-secondary)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pageTitle: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: 'var(--text-primary)',
-    margin: 0,
-    letterSpacing: '-0.01em',
-  },
-  userInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1.25rem',
-    background: 'rgba(255, 255, 255, 0.03)',
-    padding: '0.5rem 1rem',
-    borderRadius: '14px',
-    border: '1px solid var(--border-dim)',
-  },
-  welcome: {
-    color: 'var(--text-secondary)',
-    fontSize: '14px',
-  },
-  avatar: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '10px',
-    background: 'var(--accent-gradient)',
-    color: 'white',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: '800',
-    fontSize: '15px',
-    boxShadow: 'var(--accent-glow)',
-  },
-  content: {
-    flex: 1,
-    overflowY: 'auto',
-    backgroundColor: 'var(--bg-base)',
-  },
+const S = {
+  root: { display: 'flex', minHeight: '100vh', background: 'var(--bg-base)', fontFamily: "'Inter', sans-serif" },
+  sidebar: { background: 'var(--bg-surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', transition: 'width 0.25s ease', overflow: 'hidden', flexShrink: 0, zIndex: 10 },
+  sidebarTop: { padding: '1.25rem', borderBottom: '1px solid var(--border)', height: 72, display: 'flex', alignItems: 'center' },
+  brand: { display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden' },
+  brandMark: { width: 32, height: 32, borderRadius: 9, background: 'linear-gradient(135deg, #6366f1, #22d3ee)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  brandName: { fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', letterSpacing: '-0.02em' },
+  nav: { flex: 1, padding: '1rem 0.75rem', display: 'flex', flexDirection: 'column', gap: 4 },
+  navItem: { display: 'flex', alignItems: 'center', gap: 12, padding: '0.75rem 1rem', borderRadius: 10, cursor: 'pointer', transition: 'all 0.2s', border: '1px solid transparent', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden' },
+  navItemActive: { background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: '#818cf8' },
+  navIcon: { width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0, color: 'var(--text-muted)' },
+  navIconActive: { background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: '#818cf8' },
+  navLabel: { overflow: 'hidden', textOverflow: 'ellipsis' },
+  sidebarFoot: { padding: '1rem 0.75rem', borderTop: '1px solid var(--border)' },
+  logoutItem: { display: 'flex', alignItems: 'center', gap: 12, padding: '0.75rem 1rem', borderRadius: 10, cursor: 'pointer', border: '1px solid rgba(239,68,68,0.1)', background: 'rgba(239,68,68,0.03)', overflow: 'hidden', whiteSpace: 'nowrap' },
+
+  main: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 },
+  header: { height: 72, background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', position: 'sticky', top: 0, zIndex: 5, flexShrink: 0 },
+  headerLeft: { display: 'flex', alignItems: 'center', gap: '1rem' },
+  toggleBtn: { width: 36, height: 36, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-secondary)', flexShrink: 0 },
+  pageTitle: { fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' },
+  userChip: { display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 12, padding: '0.5rem 1rem' },
+  welcome: { fontSize: 13, color: 'var(--text-secondary)' },
+  avatar: { width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(135deg, #6366f1, #22d3ee)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14 },
+  content: { flex: 1, overflowY: 'auto', background: 'var(--bg-base)' },
 };

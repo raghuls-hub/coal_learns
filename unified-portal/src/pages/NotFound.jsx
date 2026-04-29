@@ -1,48 +1,15 @@
-import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function NotFound() {
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      navigate('/');
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [navigate]);
-
   return (
-    <div style={S.container}>
-      <h1 style={S.title}>404 - Page Not Found</h1>
-      <p style={S.text}>The link is broken or the portal is being refactored.</p>
-      <p style={S.sub}>Redirecting you to the Landing Page in 3 seconds...</p>
-      <button style={S.btn} onClick={() => navigate('/')}>Take Me Back Now</button>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '2rem' }}>
+      <div style={{ fontSize: 80, fontWeight: 900, background: 'linear-gradient(135deg, #6366f1, #22d3ee)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', lineHeight: 1, marginBottom: '1rem' }}>404</div>
+      <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>Page Not Found</h1>
+      <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: '2rem' }}>The page you're looking for doesn't exist.</p>
+      <button onClick={() => navigate('/')} style={{ padding: '0.75rem 2rem', background: 'linear-gradient(135deg, #6366f1, #22d3ee)', color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+        Go Home
+      </button>
     </div>
   );
 }
-
-const S = {
-  container: {
-    height: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0F172A',
-    color: '#F8FAFC',
-    textAlign: 'center',
-    fontFamily: "'Inter', sans-serif"
-  },
-  title: { fontSize: '3rem', fontWeight: '800', marginBottom: '1rem', color: '#38BDF8' },
-  text: { fontSize: '1.25rem', color: '#94A3B8', marginBottom: '2rem' },
-  sub: { fontSize: '1rem', color: '#475569', marginBottom: '2.5rem' },
-  btn: {
-    backgroundColor: 'transparent',
-    border: '1px solid #38BDF8',
-    color: '#38BDF8',
-    padding: '0.75rem 2rem',
-    borderRadius: '0.75rem',
-    fontWeight: '600',
-    cursor: 'pointer'
-  }
-};

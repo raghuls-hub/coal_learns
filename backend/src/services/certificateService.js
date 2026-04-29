@@ -6,7 +6,7 @@ const QRCode = require('qrcode');
 const PDFDocument = require('pdfkit');
 
 // Base URL for certificate verification links
-const baseUrl = process.env.APP_URL || 'http://localhost:5173';
+const baseUrl = process.env.APP_URL;
 
 /**
  * Claim Certificate (Manual Trigger)

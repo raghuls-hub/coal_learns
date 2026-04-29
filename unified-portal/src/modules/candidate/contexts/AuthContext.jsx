@@ -1,54 +1,36 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import apiClient from '../services/api';
+import apiClient from '../../../shared/api';
 
 const AuthContext = createContext();
+export const useAuth = () => useContext(AuthContext);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
-};
-
-export const AuthProvider = ({ children }) => {
+export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('CANDIDATE_USER');
+    const stored = localStorage.getItem('CANDIDATE_USER');
     const token = localStorage.getItem('CANDIDATE_AUTH_TOKEN');
-    
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
-    }
+    if (stored && token) setUser(JSON.parse(stored));
     setLoading(false);
   }, []);
 
   const login = async (email, password) => {
-    const response = await apiClient.post('/auth/login', { email, password, role: 'candidate' });
-    const { accessToken, user: userData } = response.data.data;
-    
+    const res = await apiClient.post('/auth/login', { email, password, role: 'candidate' });
+    const { accessToken, user: u } = res.data.data;
     localStorage.setItem('CANDIDATE_AUTH_TOKEN', accessToken);
-    localStorage.setItem('CANDIDATE_USER', JSON.stringify(userData));
-    setUser(userData);
-    
-    return userData;
+    localStorage.setItem('CANDIDATE_USER', JSON.stringify(u));
+    setUser(u);
+    return u;
   };
 
-  const register = async (userData) => {
-    // Force role to candidate for portal registrations
-    const response = await apiClient.post('/auth/register', { 
-      ...userData, 
-      role: 'candidate' 
-    });
-    const { accessToken, user: registeredUser } = response.data.data;
-    
+  const register = async (data) => {
+    const res = await apiClient.post('/auth/register', { ...data, role: 'candidate' });
+    const { accessToken, user: u } = res.data.data;
     localStorage.setItem('CANDIDATE_AUTH_TOKEN', accessToken);
-    localStorage.setItem('CANDIDATE_USER', JSON.stringify(registeredUser));
-    setUser(registeredUser);
-    
-    return registeredUser;
+    localStorage.setItem('CANDIDATE_USER', JSON.stringify(u));
+    setUser(u);
+    return u;
   };
 
   const logout = () => {
@@ -57,14 +39,9 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const value = {
-    user,
-    loading,
-    login,
-    register,
-    logout,
-    isAuthenticated: !!user,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+  return (
+    <AuthContext.Provider value={{ user, loading, login, register, logout, isAuthenticated: !!user }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}

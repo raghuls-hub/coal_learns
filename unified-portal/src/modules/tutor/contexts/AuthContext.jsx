@@ -1,94 +1,52 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import apiClient from '../services/api';
+import apiClient from '../../../shared/api';
 
 const AuthContext = createContext(null);
+export const useAuth = () => useContext(AuthContext);
 
-export const AuthProvider = ({ children }) => {
+export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('TUTOR_AUTH_TOKEN'));
 
   useEffect(() => {
+    const token = localStorage.getItem('TUTOR_AUTH_TOKEN');
     if (token) {
-      fetchCurrentUser();
+      apiClient.get('/auth/me')
+        .then(res => setUser(res.data.data))
+        .catch(() => logout())
+        .finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
-  }, [token]);
-
-  const fetchCurrentUser = async () => {
-    try {
-      const response = await apiClient.get('/auth/me'); // apiClient already handles headers
-      setUser(response.data.data);
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
-      logout();
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, []);
 
   const login = async (email, password) => {
-    const response = await apiClient.post('/auth/login', {
-      email,
-      password,
-      role: 'mentor'
-    });
-
-    const { accessToken, refreshToken, user } = response.data.data;
-
+    const res = await apiClient.post('/auth/login', { email, password, role: 'mentor' });
+    const { accessToken, refreshToken, user: u } = res.data.data;
     localStorage.setItem('TUTOR_AUTH_TOKEN', accessToken);
-    localStorage.setItem('TUTOR_REFRESH_TOKEN', refreshToken);
-    localStorage.setItem('TUTOR_USER', JSON.stringify(user));
-
-    setToken(accessToken);
-    setUser(user);
-
-    return user;
+    if (refreshToken) localStorage.setItem('TUTOR_REFRESH_TOKEN', refreshToken);
+    setUser(u);
+    return u;
   };
 
-  const register = async (userData) => {
-    const response = await apiClient.post('/auth/register', {
-      ...userData,
-      role: 'mentor'
-    });
-
-    const { accessToken, refreshToken, user } = response.data.data;
-
+  const register = async (data) => {
+    const res = await apiClient.post('/auth/register', { ...data, role: 'mentor' });
+    const { accessToken, refreshToken, user: u } = res.data.data;
     localStorage.setItem('TUTOR_AUTH_TOKEN', accessToken);
-    localStorage.setItem('TUTOR_REFRESH_TOKEN', refreshToken);
-    localStorage.setItem('TUTOR_USER', JSON.stringify(user));
-
-    setToken(accessToken);
-    setUser(user);
-
-    return user;
+    if (refreshToken) localStorage.setItem('TUTOR_REFRESH_TOKEN', refreshToken);
+    setUser(u);
+    return u;
   };
 
   const logout = () => {
     localStorage.removeItem('TUTOR_AUTH_TOKEN');
     localStorage.removeItem('TUTOR_REFRESH_TOKEN');
-    localStorage.removeItem('TUTOR_USER');
-    setToken(null);
     setUser(null);
   };
 
-  const value = {
-    user,
-    loading,
-    login,
-    register,
-    logout,
-    token,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+  return (
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}

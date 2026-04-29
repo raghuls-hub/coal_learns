@@ -3,44 +3,24 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Register() {
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
-    if (formData.password !== formData.confirmPassword) {
-      return setError('Passwords do not match');
-    }
-
+    if (form.password !== form.confirmPassword) return setError('Passwords do not match.');
     setLoading(true);
     try {
-      await register({
-        email: formData.email,
-        password: formData.password,
-        profile: {
-          firstName: formData.firstName,
-          lastName: formData.lastName
-        }
-      });
+      await register({ email: form.email, password: form.password, profile: { firstName: form.firstName, lastName: form.lastName } });
       navigate('/candidate/catalog');
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Registration failed. Please try again.');
+      setError(err.response?.data?.message || 'Registration failed.');
     } finally {
       setLoading(false);
     }
@@ -48,99 +28,56 @@ export default function Register() {
 
   return (
     <div style={S.page}>
+      <div style={S.orb1} /><div style={S.orb2} />
       <div style={S.left}>
+        <button onClick={() => navigate('/')} style={S.backBtn}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Back to Home
+        </button>
         <div style={S.leftContent}>
-          <div style={S.badge}>Join Our Community</div>
-          <h1 style={S.headline}>Start Your<br />Learning Journey</h1>
-          <p style={S.tagline}>Create an account to access premiums courses, track your progress, and earn industry-recognized certificates.</p>
+          <div style={S.leftBadge}>Join the Community</div>
+          <h1 style={S.leftTitle}>Start Your<br /><span className="grad-text">Learning Journey</span></h1>
+          <p style={S.leftSub}>Create a free account and access hundreds of expert-crafted courses today.</p>
         </div>
-        <div style={S.decCircle1} />
-        <div style={S.decCircle2} />
       </div>
-
       <div style={S.right}>
         <div style={S.card}>
-          <div style={S.logoBox}>CL</div>
+          <div style={S.logoMark}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
           <h2 style={S.title}>Create Account</h2>
-          <p style={S.subtitle}>Sign up for Coal Learns today</p>
-
+          <p style={S.subtitle}>Sign up for Coal Learns — it's free</p>
           <form onSubmit={handleSubmit} style={S.form}>
             <div style={S.row}>
               <div style={S.group}>
                 <label style={S.label}>First Name</label>
-                <input
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  required
-                  style={S.input}
-                  placeholder="John"
-                />
+                <input value={form.firstName} onChange={set('firstName')} required style={S.input} placeholder="John" />
               </div>
               <div style={S.group}>
                 <label style={S.label}>Last Name</label>
-                <input
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  required
-                  style={S.input}
-                  placeholder="Doe"
-                />
+                <input value={form.lastName} onChange={set('lastName')} required style={S.input} placeholder="Doe" />
               </div>
             </div>
-
             <div style={S.group}>
               <label style={S.label}>Email Address</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                style={S.input}
-                placeholder="john@example.com"
-              />
+              <input type="email" value={form.email} onChange={set('email')} required style={S.input} placeholder="john@example.com" />
             </div>
-
             <div style={S.group}>
               <label style={S.label}>Password</label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                style={S.input}
-                placeholder="••••••••"
-                minLength={8}
-              />
+              <input type="password" value={form.password} onChange={set('password')} required minLength={8} style={S.input} placeholder="Min. 8 characters" />
             </div>
-
             <div style={S.group}>
               <label style={S.label}>Confirm Password</label>
-              <input
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-                style={S.input}
-                placeholder="••••••••"
-                minLength={8}
-              />
+              <input type="password" value={form.confirmPassword} onChange={set('confirmPassword')} required style={S.input} placeholder="••••••••" />
             </div>
-
             {error && <div style={S.error}>{error}</div>}
-
             <button type="submit" disabled={loading} style={S.btn}>
-              {loading ? 'Creating Account...' : 'Sign Up'}
+              {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
-
-          <p style={S.footer}>
-            Already have an account? <Link to="/candidate/login" style={S.link}>Sign In</Link>
-          </p>
+          <p style={S.footer}>Already have an account? <Link to="/candidate/login" style={S.link}>Sign In</Link></p>
         </div>
       </div>
     </div>
@@ -148,26 +85,27 @@ export default function Register() {
 }
 
 const S = {
-  page: { minHeight: '100vh', display: 'flex', fontFamily: "'Inter', sans-serif", background: 'var(--bg-base)' },
-  left: { flex: 1, background: 'var(--bg-sidebar)', display: 'flex', alignItems: 'center', padding: '4rem', position: 'relative', overflow: 'hidden', borderRight: '1px solid var(--border-dim)' },
-  leftContent: { position: 'relative', zIndex: 2, maxWidth: '420px' },
-  badge: { display: 'inline-block', fontSize: '12px', fontWeight: '700', color: 'var(--accent-primary)', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '99px', padding: '4px 14px', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '1.5rem' },
-  headline: { fontSize: '48px', fontWeight: '800', color: 'var(--text-primary)', lineHeight: '1.15', marginBottom: '1.5rem', letterSpacing: '-0.02em' },
-  tagline: { fontSize: '17px', color: 'var(--text-secondary)', lineHeight: '1.7' },
-  decCircle1: { position: 'absolute', width: '400px', height: '400px', borderRadius: '50%', border: '60px solid rgba(56, 189, 248, 0.03)', bottom: '-150px', right: '-150px' },
-  decCircle2: { position: 'absolute', width: '250px', height: '250px', borderRadius: '50%', border: '40px solid rgba(56, 189, 248, 0.05)', top: '-80px', left: '-80px' },
-  right: { width: '520px', background: 'var(--bg-base)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem' },
-  card: { width: '100%', maxWidth: '400px' },
-  logoBox: { width: '44px', height: '44px', background: 'var(--accent-gradient)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '16px', marginBottom: '1.5rem' },
-  title: { fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '0.5rem', letterSpacing: '-0.02em' },
-  subtitle: { fontSize: '15px', color: 'var(--text-secondary)', marginBottom: '2.5rem' },
-  form: { display: 'flex', flexDirection: 'column', gap: '1.25rem' },
-  row: { display: 'flex', gap: '1rem' },
-  group: { display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 },
-  label: { fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', letterSpacing: '0.01em' },
-  input: { padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-dim)', background: 'var(--bg-sidebar)', color: 'var(--text-primary)', fontSize: '15px', outline: 'none', transition: 'border-color 0.2s', width: '100%', boxSizing: 'border-box' },
-  error: { padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error)', color: 'var(--error)', borderRadius: '8px', fontSize: '14px' },
-  btn: { padding: '0.875rem', background: 'var(--accent-gradient)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', letterSpacing: '0.01em', marginTop: '0.5rem', boxShadow: 'var(--accent-glow)' },
-  footer: { marginTop: '1.5rem', fontSize: '14px', color: 'var(--text-secondary)', textAlign: 'center' },
-  link: { color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: '600' }
+  page: { minHeight: '100vh', display: 'flex', background: 'var(--bg-base)', position: 'relative', overflow: 'hidden' },
+  orb1: { position: 'fixed', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%)', top: -150, left: -150, pointerEvents: 'none' },
+  orb2: { position: 'fixed', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(34,211,238,0.07) 0%, transparent 70%)', bottom: -100, right: -100, pointerEvents: 'none' },
+  left: { flex: 1, display: 'flex', flexDirection: 'column', padding: '2.5rem 4rem', justifyContent: 'center', borderRight: '1px solid rgba(255,255,255,0.05)', position: 'relative', zIndex: 1 },
+  backBtn: { position: 'absolute', top: '2rem', left: '2rem', display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: '0.4rem 0.75rem', borderRadius: 8 },
+  leftContent: { maxWidth: 440 },
+  leftBadge: { display: 'inline-block', fontSize: 11, fontWeight: 700, color: '#22d3ee', background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.2)', borderRadius: 99, padding: '4px 12px', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '1.5rem' },
+  leftTitle: { fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 900, lineHeight: 1.15, letterSpacing: '-0.03em', marginBottom: '1.25rem', color: 'var(--text-primary)' },
+  leftSub: { fontSize: 16, color: 'var(--text-secondary)', lineHeight: 1.7 },
+  right: { width: 520, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 2.5rem', position: 'relative', zIndex: 1 },
+  card: { width: '100%', maxWidth: 420 },
+  logoMark: { width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg, #6366f1, #22d3ee)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' },
+  title: { fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.4rem', letterSpacing: '-0.02em' },
+  subtitle: { fontSize: 14, color: 'var(--text-secondary)', marginBottom: '2rem' },
+  form: { display: 'flex', flexDirection: 'column', gap: '1.1rem' },
+  row: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' },
+  group: { display: 'flex', flexDirection: 'column', gap: 6 },
+  label: { fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' },
+  input: { padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, color: 'var(--text-primary)', fontSize: 14, outline: 'none', width: '100%' },
+  error: { padding: '0.75rem 1rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171', borderRadius: 8, fontSize: 13 },
+  btn: { padding: '0.875rem', background: 'linear-gradient(135deg, #6366f1, #22d3ee)', color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginTop: '0.5rem', boxShadow: '0 8px 24px rgba(99,102,241,0.3)' },
+  footer: { marginTop: '1.5rem', fontSize: 14, color: 'var(--text-secondary)', textAlign: 'center' },
+  link: { color: '#818cf8', fontWeight: 600 },
 };

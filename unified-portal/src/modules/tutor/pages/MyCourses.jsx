@@ -1,239 +1,129 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/api';
-import { EditIcon, DeleteIcon, PublishIcon, UnpublishIcon } from '../components/Icons';
 
 export default function MyCourses() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { user } = useAuth();
 
-  useEffect(() => {
-    fetchCourses();
-  }, []);
+  useEffect(() => { fetchCourses(); }, []);
 
-  const fetchCourses = async () => {
-    try {
-      const params = user?.role === 'mentor' 
-        ? { courseHandler: user.userId } 
-        : {};
-        
-      const response = await apiClient.get('/courses', { params });
-      const coursesData = response.data.data?.courses || response.data.courses || [];
-      setCourses(coursesData);
-    } catch (error) {
-      console.error('Failed to fetch courses:', error);
-    } finally {
-      setLoading(false);
-    }
+  const fetchCourses = () => {
+    apiClient.get('/courses')
+      .then(res => setCourses(res.data.data?.courses || res.data.courses || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
 
-  const togglePublish = async (courseId, currentStatus) => {
-    try {
-      await apiClient.put(`/courses/${courseId}/publish`);
-      fetchCourses();
-    } catch (error) {
-      alert('Failed to toggle publish status');
-    }
+  const togglePublish = async (id, e) => {
+    e.stopPropagation();
+    try { await apiClient.put(`/courses/${id}/publish`); fetchCourses(); } catch {}
   };
 
-  const deleteCourse = async (courseId) => {
-    if (!confirm(
-      'Are you sure you want to delete this course?\n\n' +
-      'This will permanently remove the course.\n' +
-      'Enrolled students will retain their progress and certificates.'
-    )) return;
-
-    try {
-      await apiClient.delete(`/courses/${courseId}`);
-      fetchCourses();
-    } catch (error) {
-      alert('Failed to delete course');
-    }
+  const deleteCourse = async (id, e) => {
+    e.stopPropagation();
+    if (!confirm('Delete this course? Students retain their progress and certificates.')) return;
+    try { await apiClient.delete(`/courses/${id}`); fetchCourses(); } catch {}
   };
 
-  if (loading) return <div style={styles.loading}>Loading courses...</div>;
+  if (loading) return (
+    <div style={S.page}>
+      <div style={S.grid}>{[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: 280, borderRadius: 16 }} />)}</div>
+    </div>
+  );
 
   return (
-    <div style={styles.container}>
-
-      
-      <div style={styles.header}>
+    <div style={S.page}>
+      <div style={S.header}>
         <div>
-          <h1 style={styles.title}>My Courses</h1>
-          <p style={styles.subtitle}>Manage your course catalog</p>
+          <h1 style={S.title}>My Courses</h1>
+          <p style={S.subtitle}>Manage your course catalog</p>
         </div>
-        <button onClick={() => navigate('/tutor/create-course')} style={styles.createBtn}>
-          Create New Course
-        </button>
+        <button onClick={() => navigate('/tutor/create-course')} style={S.createBtn}>+ Create New Course</button>
       </div>
 
-      <div style={styles.grid}>
-        {courses.length === 0 ? (
-          <div style={styles.emptyState}>
-            <h3>No courses yet</h3>
-            <p>Create your first course to get started!</p>
-            <button onClick={() => navigate('/tutor/create-course')} style={styles.createBtn}>
-              Create Course
-            </button>
-          </div>
-        ) : (
-          courses.map((course) => (
-            <div 
-              key={course._id} 
-              style={styles.card}
-              onClick={() => navigate(`/tutor/course/${course._id}`)}
-            >
-              <div style={styles.cardHeader}>
-                <h3 style={styles.courseTitle}>{course.title}</h3>
-                <span style={
-                  course.settings.isPublished
-                    ? styles.badgePublished
-                    : course.settings.isArchived
-                    ? styles.badgeArchived
-                    : styles.badgeDraft
-                }>
-                  {course.settings.isPublished ? 'Published' : course.settings.isArchived ? 'Archived' : 'Draft'}
-                </span>
-              </div>
-              <p style={styles.description}>{course.description}</p>
-              <div style={styles.meta}>
-                <span style={styles.badgeDraft}>{course.category}</span>
-                <span style={styles.badgeDraft}>{course.level}</span>
-                <span style={{ ...styles.badgeDraft, color: 'var(--accent-primary)', borderColor: 'rgba(99, 102, 241, 0.3)' }}>₹{course.pricing.amount}</span>
-              </div>
-              <div style={styles.stats}>
-                <div style={styles.statItem}>
-                  <strong style={styles.statVal}>{course.stats.enrollmentCount}</strong>
-                  <span style={styles.statLabel}>Students</span>
+      {courses.length === 0 ? (
+        <div style={S.empty}>
+          <div style={S.emptyIcon}>📚</div>
+          <h3 style={S.emptyTitle}>No courses yet</h3>
+          <p style={S.emptySub}>Create your first course to get started!</p>
+          <button onClick={() => navigate('/tutor/create-course')} style={S.createBtn}>Create Course</button>
+        </div>
+      ) : (
+        <div style={S.grid}>
+          {courses.map(course => {
+            const isPublished = course.settings?.isPublished;
+            const isArchived = course.settings?.isArchived;
+            return (
+              <div key={course._id} style={S.card} onClick={() => navigate(`/tutor/course/${course._id}`)}>
+                <div style={S.cardHead}>
+                  <h3 style={S.courseTitle}>{course.title}</h3>
+                  <span style={{
+                    ...S.badge,
+                    background: isPublished ? 'rgba(16,185,129,0.1)' : isArchived ? 'rgba(245,158,11,0.1)' : 'rgba(148,163,184,0.08)',
+                    color: isPublished ? '#10b981' : isArchived ? '#f59e0b' : 'var(--text-muted)',
+                    border: `1px solid ${isPublished ? 'rgba(16,185,129,0.2)' : isArchived ? 'rgba(245,158,11,0.2)' : 'var(--border)'}`,
+                  }}>
+                    {isPublished ? 'Published' : isArchived ? 'Archived' : 'Draft'}
+                  </span>
                 </div>
-                <div style={styles.statItem}>
-                  <strong style={styles.statVal}>{course.modules?.length || 0}</strong>
-                  <span style={styles.statLabel}>Modules</span>
+                <p style={S.desc}>{course.description}</p>
+                <div style={S.meta}>
+                  <span style={S.metaTag}>{course.category}</span>
+                  <span style={S.metaTag}>{course.level}</span>
+                  <span style={{ ...S.metaTag, color: '#10b981', borderColor: 'rgba(16,185,129,0.2)' }}>₹{course.pricing?.amount || 0}</span>
                 </div>
-                <div style={styles.statItem}>
-                  <strong style={styles.statVal}>₹{(course.pricing.amount * course.stats.enrollmentCount).toFixed(0)}</strong>
-                  <span style={styles.statLabel}>Revenue</span>
+                <div style={S.stats}>
+                  {[
+                    [course.stats?.enrollmentCount || 0, 'Students'],
+                    [course.modules?.length || 0, 'Modules'],
+                    [`₹${((course.pricing?.amount || 0) * (course.stats?.enrollmentCount || 0)).toFixed(0)}`, 'Revenue'],
+                  ].map(([v, l]) => (
+                    <div key={l} style={S.statItem}>
+                      <strong style={S.statVal}>{v}</strong>
+                      <span style={S.statLabel}>{l}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={S.actions}>
+                  <button onClick={(e) => togglePublish(course._id, e)} style={S.publishBtn}>
+                    {isPublished ? 'Unpublish' : 'Publish'}
+                  </button>
+                  <button onClick={(e) => deleteCourse(course._id, e)} style={S.deleteBtn}>Delete</button>
                 </div>
               </div>
-              <div style={styles.actions}>
-                  {course.settings.isPublished ? (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); togglePublish(course._id, course.settings.isPublished); }}
-                      style={styles.publishBtn}
-                    >
-                      <UnpublishIcon size={13} color='#6366f1' />
-                      <span style={{ marginLeft: '5px' }}>Unpublish</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); togglePublish(course._id, course.settings.isPublished); }}
-                      style={styles.publishBtn}
-                    >
-                      <PublishIcon size={13} color='#6366f1' />
-                      <span style={{ marginLeft: '5px' }}>Publish</span>
-                    </button>
-                  )}
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteCourse(course._id);
-                  }} 
-                  style={styles.deleteBtn}
-                >
-                  <DeleteIcon size={13} color='#ef4444' />
-                  <span style={{ marginLeft: '5px' }}>Delete</span>
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
-const styles = {
-  container: { padding: '2.5rem', maxWidth: '1400px', margin: '0 auto', minHeight: '100%' },
-  loading: { textAlign: 'center', padding: '5rem', fontSize: '18px', color: 'var(--text-secondary)' },
-  header: { 
-    display: 'flex', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: '3rem', 
-    background: 'rgba(30, 41, 59, 0.4)', 
-    padding: '2.5rem', 
-    borderRadius: '24px', 
-    border: '1px solid var(--border-dim)', 
-    backdropFilter: 'blur(10px)',
-  },
-  title: { fontSize: '32px', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '0.4rem', letterSpacing: '-0.025em' },
-  subtitle: { color: 'var(--text-secondary)', fontSize: '15px', fontWeight: '500' },
-  createBtn: { 
-    padding: '1rem 2rem', 
-    background: 'var(--accent-gradient)', 
-    color: 'white', 
-    border: 'none', 
-    borderRadius: '12px', 
-    fontSize: '15px', 
-    fontWeight: '800', 
-    cursor: 'pointer', 
-    boxShadow: '0 8px 16px rgba(99, 102, 241, 0.3)',
-    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-  },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '2.5rem' },
-  emptyState: { gridColumn: '1 / -1', textAlign: 'center', padding: '6rem 2rem', background: 'var(--bg-surface)', borderRadius: '24px', border: '1px solid var(--border-dim)' },
-  card: { 
-    background: 'var(--bg-surface)', 
-    padding: '2rem', 
-    borderRadius: '20px', 
-    border: '1px solid var(--border-dim)', 
-    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', 
-    cursor: 'pointer',
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1.5rem', gap: '1rem' },
-  courseTitle: { fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)', flex: 1, lineHeight: '1.4', letterSpacing: '-0.01em' },
-  badgePublished: { padding: '0.4rem 0.9rem', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', borderRadius: '10px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em', border: '1px solid rgba(16, 185, 129, 0.2)' },
-  badgeArchived: { padding: '0.4rem 0.9rem', background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)', borderRadius: '10px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em', border: '1px solid rgba(245, 158, 11, 0.2)' },
-  badgeDraft: { padding: '0.4rem 0.9rem', background: 'rgba(148, 163, 184, 0.1)', color: 'var(--text-secondary)', borderRadius: '10px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em', border: '1px solid var(--border-dim)' },
-  description: { color: 'var(--text-secondary)', fontSize: '15px', marginBottom: '2rem', lineHeight: '1.6', height: '3rem', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
-  meta: { display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' },
-  stats: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-dim)' },
-  statItem: { textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.4rem' },
-  statVal: { color: 'var(--text-primary)', fontSize: '18px', fontWeight: '800' },
-  statLabel: { color: 'var(--text-muted)', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' },
-  actions: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginTop: 'auto' },
-  publishBtn: { 
-    padding: '0.875rem', 
-    background: 'rgba(99, 102, 241, 0.05)', 
-    color: 'var(--accent-primary)', 
-    border: '1px solid rgba(99, 102, 241, 0.2)', 
-    borderRadius: '12px', 
-    fontSize: '13px', 
-    cursor: 'pointer', 
-    fontWeight: '800',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteBtn: { 
-    padding: '0.875rem', 
-    background: 'transparent', 
-    color: 'var(--error)', 
-    border: '1px solid rgba(239, 68, 68, 0.1)', 
-    borderRadius: '12px', 
-    fontSize: '13px', 
-    cursor: 'pointer', 
-    fontWeight: '800',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+const S = {
+  page: { padding: '2rem', maxWidth: 1400, margin: '0 auto' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '1.75rem 2rem', flexWrap: 'wrap', gap: '1rem' },
+  title: { fontSize: 28, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginBottom: 4 },
+  subtitle: { fontSize: 14, color: 'var(--text-secondary)' },
+  createBtn: { padding: '0.75rem 1.5rem', background: 'linear-gradient(135deg, #6366f1, #22d3ee)', color: 'white', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', flexShrink: 0 },
+  empty: { textAlign: 'center', padding: '5rem 2rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20 },
+  emptyIcon: { fontSize: 48, marginBottom: '1rem' },
+  emptyTitle: { fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' },
+  emptySub: { fontSize: 15, color: 'var(--text-secondary)', marginBottom: '1.5rem' },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.5rem' },
+  card: { background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '1.75rem', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '1rem', transition: 'border-color 0.2s' },
+  cardHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' },
+  courseTitle: { fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', flex: 1, lineHeight: 1.4, letterSpacing: '-0.01em' },
+  badge: { fontSize: 11, fontWeight: 700, borderRadius: 99, padding: '3px 10px', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 },
+  desc: { fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' },
+  meta: { display: 'flex', gap: 8, flexWrap: 'wrap' },
+  metaTag: { fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 99, padding: '3px 10px', textTransform: 'capitalize' },
+  stats: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' },
+  statItem: { textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 3 },
+  statVal: { fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' },
+  statLabel: { fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' },
+  actions: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: 'auto' },
+  publishBtn: { padding: '0.7rem', background: 'rgba(99,102,241,0.08)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  deleteBtn: { padding: '0.7rem', background: 'transparent', color: '#f87171', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer' },
 };
