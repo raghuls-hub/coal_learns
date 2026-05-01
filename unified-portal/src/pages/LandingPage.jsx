@@ -92,7 +92,8 @@ export default function LandingPage() {
                 ))}
               </ul>
               <button style={{ ...S.cardBtn, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-                Enter as Candidate →
+                Enter as Candidate
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ marginLeft: 6 }}><path d="M5 12h14M12 5l7 7-7 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
             </div>
 
@@ -119,7 +120,8 @@ export default function LandingPage() {
                 ))}
               </ul>
               <button style={{ ...S.cardBtn, background: 'linear-gradient(135deg, #22d3ee, #6366f1)' }}>
-                Enter as Mentor →
+                Enter as Mentor
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ marginLeft: 6 }}><path d="M5 12h14M12 5l7 7-7 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
             </div>
           </div>
@@ -187,7 +189,7 @@ const S = {
   cardDesc: { fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.65 },
   cardFeatures: { listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 },
   cardFeature: { display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--text-secondary)', fontWeight: 500 },
-  cardBtn: { marginTop: 'auto', padding: '0.875rem', color: 'white', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', textAlign: 'center' },
+  cardBtn: { marginTop: 'auto', padding: '0.875rem', color: 'white', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' },
 
   footer: { position: 'relative', zIndex: 1, borderTop: '1px solid var(--border)', padding: '1.5rem 2rem' },
   footerInner: { maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' },

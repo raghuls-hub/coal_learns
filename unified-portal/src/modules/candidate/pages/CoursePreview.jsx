@@ -3,6 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/api';
 
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+function resolveCover(url) {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${API_BASE}${url}`;
+}
+
 export default function CoursePreview() {
   const { courseId } = useParams();
   const navigate = useNavigate();
@@ -47,11 +54,18 @@ export default function CoursePreview() {
   if (!course) return <div style={S.loading}>Course not found</div>;
 
   const totalChapters = modules.reduce((a, m) => a + (m.content?.length || 0), 0);
+  const hue = (course.title || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+  const coverSrc = resolveCover(course.coverImage || course.thumbnail);
 
   return (
     <div style={S.page}>
       {/* Hero */}
       <div style={S.hero}>
+        {/* Cover background */}
+        {coverSrc
+          ? <div style={{ ...S.heroBg, backgroundImage: `url(${coverSrc})` }} />
+          : <div style={{ ...S.heroBg, background: `linear-gradient(135deg, hsl(${hue},55%,10%) 0%, hsl(${(hue+40)%360},45%,7%) 100%)` }} />}
+        <div style={S.heroBgOverlay} />
         <div style={S.heroOrb} />
         <div style={S.heroInner}>
           <div style={S.heroLeft}>
@@ -127,6 +141,8 @@ const S = {
   page: { minHeight: '100vh', background: 'var(--bg-base)' },
   loading: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: 'var(--text-secondary)' },
   hero: { position: 'relative', overflow: 'hidden', borderBottom: '1px solid var(--border)', padding: '3rem 2rem' },
+  heroBg: { position: 'absolute', inset: 0, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(2px)', transform: 'scale(1.05)', pointerEvents: 'none' },
+  heroBgOverlay: { position: 'absolute', inset: 0, background: 'rgba(6,9,18,0.82)', pointerEvents: 'none' },
   heroOrb: { position: 'absolute', width: 600, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(99,102,241,0.1) 0%, transparent 70%)', top: -100, right: -100, pointerEvents: 'none' },
   heroInner: { position: 'relative', zIndex: 1, maxWidth: 1100, margin: '0 auto', display: 'flex', gap: '3rem', alignItems: 'flex-start', flexWrap: 'wrap' },
   heroLeft: { flex: 1, minWidth: 300 },

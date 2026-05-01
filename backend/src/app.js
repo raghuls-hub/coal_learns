@@ -17,6 +17,7 @@ const progressRoutes = require('./routes/progress.routes');
 const userRoutes = require('./routes/user.routes');
 const certificateRoutes = require('./routes/certificate.routes');
 const uploadRoutes = require('./routes/upload.routes');
+const aiRoutes = require('./routes/ai.routes');
 
 const app = express();
 
@@ -99,7 +100,7 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/upload', uploadRoutes);
-// Additional routes will be added as we build them
+app.use('/api/ai', aiRoutes);
 
 // 404 handler
 app.use(notFound);

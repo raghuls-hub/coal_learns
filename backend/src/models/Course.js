@@ -11,7 +11,10 @@ const CourseSchema = new mongoose.Schema({
     required: [true, 'Description is required'],
   },
   thumbnail: {
-    type: String, // URL to thumbnail image
+    type: String,
+  },
+  coverImage: {
+    type: String, // URL to cover image (GridFS path or external URL)
   },
   category: {
     type: String,

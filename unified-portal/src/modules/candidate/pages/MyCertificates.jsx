@@ -40,7 +40,13 @@ export default function MyCertificates() {
       <div style={S.body}>
         {certs.length === 0 ? (
           <div style={S.empty}>
-            <div style={S.emptyIcon}>🏆</div>
+            <div style={S.emptyIconWrap}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="8" r="4" stroke="#fbbf24" strokeWidth="1.5"/>
+                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M15 13l2 2 4-4" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
             <h2 style={S.emptyTitle}>No certificates yet</h2>
             <p style={S.emptySub}>Complete all chapters in a course to earn your verified credential.</p>
             <button onClick={() => navigate('/candidate/my-learning')} style={S.emptyBtn}>Continue Learning</button>
@@ -51,13 +57,20 @@ export default function MyCertificates() {
               <div key={cert._id} style={S.card}>
                 <div style={S.goldBar} />
                 <div style={S.cardHead}>
-                  <span style={S.verifiedBadge}>✓ Verified Credential</span>
+                  <span style={S.verifiedBadge}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ marginRight: 4 }}><path d="M20 6L9 17l-5-5" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Verified Credential
+                  </span>
                   <span style={S.issuedDate}>
                     {new Date(cert.issueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </span>
                 </div>
                 <div style={S.cardBody}>
-                  <div style={S.ribbonIcon}>🎖️</div>
+                  <div style={S.emptyIcon}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 15l-2 2-2-2M12 9V3M8 3h8M5 21h14a2 2 0 002-2V9a2 2 0 00-2-2h-3" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
                   <h3 style={S.courseName}>{cert.courseName || 'Course Title Unavailable'}</h3>
                   <p style={S.instructorName}>Instructor: {cert.instructorName || 'Platform Instructor'}</p>
                   <p style={S.certId}>ID: {cert.certificateId}</p>
@@ -70,7 +83,8 @@ export default function MyCertificates() {
                 )}
                 <div style={S.cardFoot}>
                   <button onClick={() => handleDownload(cert)} style={S.downloadBtn}>
-                    ↓ Download Certificate PDF
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ marginRight: 6 }}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Download Certificate PDF
                   </button>
                 </div>
               </div>
@@ -92,8 +106,8 @@ const S = {
   subtitle: { fontSize: 16, color: 'var(--text-secondary)' },
 
   body: { maxWidth: 1100, margin: '0 auto', padding: '2.5rem 2rem' },
-  empty: { textAlign: 'center', padding: '5rem 2rem', background: 'var(--bg-card)', borderRadius: 20, border: '1px dashed var(--border)' },
-  emptyIcon: { fontSize: 56, marginBottom: '1.25rem' },
+  empty: { textAlign: 'center', padding: '5rem 2rem', background: 'var(--bg-card)', borderRadius: 20, border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' },
+  emptyIconWrap: { width: 72, height: 72, borderRadius: '50%', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' },
   emptyTitle: { fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' },
   emptySub: { fontSize: 15, color: 'var(--text-secondary)', maxWidth: 400, margin: '0 auto 1.5rem', lineHeight: 1.6 },
   emptyBtn: { padding: '0.75rem 2rem', background: 'linear-gradient(135deg, #6366f1, #22d3ee)', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: 'pointer' },
@@ -102,10 +116,10 @@ const S = {
   card: { background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column' },
   goldBar: { height: 3, background: 'linear-gradient(90deg, #f59e0b, #fcd34d, #f59e0b)' },
   cardHead: { padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' },
-  verifiedBadge: { fontSize: 11, fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 99, padding: '3px 10px' },
+  verifiedBadge: { display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 99, padding: '3px 10px' },
   issuedDate: { fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 },
   cardBody: { padding: '1.5rem', flex: 1 },
-  ribbonIcon: { fontSize: 32, marginBottom: '0.75rem' },
+  emptyIcon: { fontSize: 32, marginBottom: '0.75rem' },
   courseName: { fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.4rem', lineHeight: 1.4 },
   instructorName: { fontSize: 13, color: 'var(--text-secondary)', marginBottom: '0.5rem' },
   certId: { fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.5rem' },
