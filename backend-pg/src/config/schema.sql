@@ -255,6 +255,7 @@ CREATE TABLE IF NOT EXISTS uploaded_files (
   original_name VARCHAR(255) NOT NULL,
   content_type VARCHAR(100) NOT NULL,
   size         BIGINT NOT NULL,
+  file_data    BYTEA NOT NULL,
   uploaded_by  UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

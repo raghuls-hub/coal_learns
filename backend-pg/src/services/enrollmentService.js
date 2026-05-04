@@ -1,4 +1,4 @@
-const { pool } = require('../config/database');
+const { pool } = require("../config/database");
 
 const formatEnrollment = (row) => ({
   _id: row.id,
@@ -11,17 +11,27 @@ const formatEnrollment = (row) => ({
         title: row.course_title,
         description: row.course_description,
         thumbnail: row.course_thumbnail,
+        coverImage: row.course_cover_image,
         category: row.course_category,
         level: row.course_level,
-        pricing: row.price_amount != null
-          ? { amount: parseFloat(row.price_amount), currency: row.price_currency }
-          : undefined,
-        settings: row.is_published != null
-          ? { isPublished: row.is_published, enrollmentLimit: row.enrollment_limit }
-          : undefined,
-        stats: row.enrollment_count != null
-          ? { enrollmentCount: row.enrollment_count }
-          : undefined,
+        pricing:
+          row.price_amount != null
+            ? {
+                amount: parseFloat(row.price_amount),
+                currency: row.price_currency,
+              }
+            : undefined,
+        settings:
+          row.is_published != null
+            ? {
+                isPublished: row.is_published,
+                enrollmentLimit: row.enrollment_limit,
+              }
+            : undefined,
+        stats:
+          row.enrollment_count != null
+            ? { enrollmentCount: row.enrollment_count }
+            : undefined,
       }
     : null,
   paymentStatus: row.payment_status,
@@ -51,7 +61,12 @@ const formatEnrollment = (row) => ({
   createdAt: row.created_at,
 });
 
-exports.createEnrollment = async (userId, courseId, courseHandlerName, course) => {
+exports.createEnrollment = async (
+  userId,
+  courseId,
+  courseHandlerName,
+  course,
+) => {
   const { rows } = await pool.query(
     `INSERT INTO enrollments
        (user_id, course_id, amount_paid, currency, payment_status, transaction_id,
@@ -60,19 +75,25 @@ exports.createEnrollment = async (userId, courseId, courseHandlerName, course) =
      VALUES ($1,$2,$3,$4,'completed',$5,$6,$7,$8,$9,$10,$11,$12)
      RETURNING *`,
     [
-      userId, courseId,
-      course.price_amount, course.price_currency,
+      userId,
+      courseId,
+      course.price_amount,
+      course.price_currency,
       `MOCK_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-      course.title, course.description, course.thumbnail,
-      course.category, course.level, courseHandlerName,
+      course.title,
+      course.description,
+      course.thumbnail,
+      course.category,
+      course.level,
+      courseHandlerName,
       course.module_count || 0,
-    ]
+    ],
   );
 
   // Increment enrollment count
   await pool.query(
-    'UPDATE courses SET enrollment_count = enrollment_count + 1, updated_at = NOW() WHERE id = $1',
-    [courseId]
+    "UPDATE courses SET enrollment_count = enrollment_count + 1, updated_at = NOW() WHERE id = $1",
+    [courseId],
   );
 
   return formatEnrollment(rows[0]);
@@ -82,14 +103,14 @@ exports.getMyEnrollments = async (userId) => {
   const { rows } = await pool.query(
     `SELECT e.*,
             c.title AS course_title, c.description AS course_description,
-            c.thumbnail AS course_thumbnail, c.category AS course_category,
-            c.level AS course_level, c.price_amount, c.price_currency,
+            c.thumbnail AS course_thumbnail, c.cover_image AS course_cover_image,
+            c.category AS course_category, c.level AS course_level, c.price_amount, c.price_currency,
             c.is_published, c.enrollment_limit, c.enrollment_count
      FROM enrollments e
      LEFT JOIN courses c ON c.id = e.course_id
      WHERE e.user_id = $1 AND e.payment_status = 'completed'
      ORDER BY e.enrolled_at DESC`,
-    [userId]
+    [userId],
   );
   return rows.map(formatEnrollment);
 };
@@ -105,34 +126,41 @@ exports.getTutorEnrollments = async (tutorId) => {
      JOIN users u ON u.id = e.user_id
      WHERE e.payment_status = 'completed'
      ORDER BY e.enrolled_at DESC`,
-    [tutorId]
+    [tutorId],
   );
   return rows.map((r) => ({
     ...formatEnrollment(r),
-    user: { _id: r.user_id, email: r.user_email, profile: { firstName: r.first_name, lastName: r.last_name } },
+    user: {
+      _id: r.user_id,
+      email: r.user_email,
+      profile: { firstName: r.first_name, lastName: r.last_name },
+    },
   }));
 };
 
 exports.checkEnrollmentStatus = async (userId, courseId) => {
   const { rows } = await pool.query(
     `SELECT * FROM enrollments WHERE user_id=$1 AND course_id=$2 AND payment_status='completed'`,
-    [userId, courseId]
+    [userId, courseId],
   );
-  return { isEnrolled: rows.length > 0, enrollment: rows.length ? formatEnrollment(rows[0]) : null };
+  return {
+    isEnrolled: rows.length > 0,
+    enrollment: rows.length ? formatEnrollment(rows[0]) : null,
+  };
 };
 
 exports.getEnrollmentById = async (enrollmentId, userId) => {
   const { rows } = await pool.query(
     `SELECT e.* FROM enrollments e WHERE e.id = $1 AND e.user_id = $2`,
-    [enrollmentId, userId]
+    [enrollmentId, userId],
   );
-  if (!rows.length) throw new Error('Enrollment not found');
+  if (!rows.length) throw new Error("Enrollment not found");
 
   const enrollment = formatEnrollment(rows[0]);
 
   // Populate course with modules + content if course exists
   if (rows[0].course_id) {
-    const courseService = require('./courseService');
+    const courseService = require("./courseService");
     try {
       enrollment.course = await courseService.getCourseById(rows[0].course_id);
     } catch {
@@ -144,15 +172,17 @@ exports.getEnrollmentById = async (enrollmentId, userId) => {
 };
 
 exports.getEnrollmentByIdRaw = async (enrollmentId) => {
-  const { rows } = await pool.query('SELECT * FROM enrollments WHERE id = $1', [enrollmentId]);
-  if (!rows.length) throw new Error('Enrollment not found');
+  const { rows } = await pool.query("SELECT * FROM enrollments WHERE id = $1", [
+    enrollmentId,
+  ]);
+  if (!rows.length) throw new Error("Enrollment not found");
   return rows[0];
 };
 
 exports.findEnrollment = async (userId, courseId) => {
   const { rows } = await pool.query(
-    'SELECT * FROM enrollments WHERE user_id=$1 AND course_id=$2',
-    [userId, courseId]
+    "SELECT * FROM enrollments WHERE user_id=$1 AND course_id=$2",
+    [userId, courseId],
   );
   return rows[0] || null;
 };

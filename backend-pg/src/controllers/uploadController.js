@@ -1,19 +1,9 @@
-const multer = require('multer');
-const path = require('path');
-const crypto = require('crypto');
-const fs = require('fs');
-const { pool } = require('../config/database');
+const multer = require("multer");
+const crypto = require("crypto");
+const { pool } = require("../config/database");
 
-const UPLOAD_DIR = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const unique = crypto.randomBytes(16).toString('hex');
-    cb(null, unique + path.extname(file.originalname));
-  },
-});
+// Use memory storage since we'll store files directly in database
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -23,45 +13,82 @@ const upload = multer({
 exports.upload = upload;
 
 exports.uploadFile = async (req, res) => {
-  if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+  if (!req.file)
+    return res
+      .status(400)
+      .json({ success: false, message: "No file uploaded" });
 
   try {
+    // Generate unique filename
+    const unique = crypto.randomBytes(16).toString("hex");
+    const fileExtension = req.file.originalname.substring(
+      req.file.originalname.lastIndexOf("."),
+    );
+    const filename = unique + fileExtension;
+
+    // Store file data directly in database
     await pool.query(
-      `INSERT INTO uploaded_files (filename, original_name, content_type, size, uploaded_by)
-       VALUES ($1,$2,$3,$4,$5)`,
-      [req.file.filename, req.file.originalname, req.file.mimetype, req.file.size, req.user?.userId || null]
+      `INSERT INTO uploaded_files (filename, original_name, content_type, size, file_data, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        filename,
+        req.file.originalname,
+        req.file.mimetype,
+        req.file.size,
+        req.file.buffer, // Store file content as bytea
+        req.user?.userId || null,
+      ],
     );
 
     res.status(200).json({
       success: true,
       data: {
-        filename: req.file.filename,
+        filename: filename,
         contentType: req.file.mimetype,
         size: req.file.size,
-        url: `/api/upload/file/${req.file.filename}`,
+        url: `/api/upload/file/${filename}`,
       },
     });
   } catch (error) {
-    // Clean up file if DB insert fails
-    fs.unlink(req.file.path, () => {});
+    console.error("Upload error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 exports.getFile = async (req, res) => {
   try {
+    const filename = req.params.filename;
+
+    // Validate filename to prevent directory traversal
+    if (
+      filename.includes("..") ||
+      filename.includes("/") ||
+      filename.includes("\\")
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid filename" });
+    }
+
+    // Retrieve file data from database
     const { rows } = await pool.query(
-      'SELECT * FROM uploaded_files WHERE filename = $1',
-      [req.params.filename]
+      "SELECT file_data, content_type FROM uploaded_files WHERE filename = $1",
+      [filename],
     );
-    if (!rows.length) return res.status(404).json({ success: false, message: 'File not found' });
 
-    const filePath = path.join(UPLOAD_DIR, req.params.filename);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, message: 'File not found on disk' });
+    if (rows.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "File not found" });
+    }
 
-    res.set('Content-Type', rows[0].content_type || 'application/octet-stream');
-    fs.createReadStream(filePath).pipe(res);
+    const { file_data, content_type } = rows[0];
+
+    res.set("Content-Type", content_type);
+    res.set("Cache-Control", "public, max-age=31536000"); // Cache for 1 year
+    res.send(file_data);
   } catch (error) {
+    console.error("File retrieval error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
