@@ -201,7 +201,7 @@ exports.getCourses = async (filters = {}, page = 1, limit = 10) => {
        LEFT JOIN users u ON u.id = c.course_handler_id
        LEFT JOIN modules m ON m.course_id = c.id
        ${where}
-       GROUP BY c.id, u.id
+       GROUP BY c.id, u.id, u.email, u.first_name, u.last_name
        ORDER BY c.created_at DESC
        LIMIT $${i} OFFSET $${i + 1}`,
       [...params, limit, offset],

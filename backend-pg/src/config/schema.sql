@@ -261,3 +261,22 @@ CREATE TABLE IF NOT EXISTS uploaded_files (
 );
 
 CREATE INDEX IF NOT EXISTS idx_uploaded_files_filename ON uploaded_files(filename);
+
+-- ─── PROGRESS TRACKING HISTORY ───────────────────────────────
+-- Permanent record of content completion events for accurate progress tracking
+CREATE TABLE IF NOT EXISTS progress_tracking_history (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  progress_id     UUID NOT NULL REFERENCES progress(id) ON DELETE CASCADE,
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  course_id       UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  content_id      UUID NOT NULL REFERENCES content(id) ON DELETE CASCADE,
+  module_id       UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+  event_type      VARCHAR(50) NOT NULL DEFAULT 'content_completed',  -- 'content_completed', 'module_started', etc.
+  completed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pth_user_course ON progress_tracking_history(user_id, course_id);
+CREATE INDEX IF NOT EXISTS idx_pth_progress ON progress_tracking_history(progress_id);
+CREATE INDEX IF NOT EXISTS idx_pth_user ON progress_tracking_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_pth_completed_at ON progress_tracking_history(completed_at);

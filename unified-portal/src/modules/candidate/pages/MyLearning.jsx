@@ -23,8 +23,11 @@ function resolveCover(url) {
 }
 
 // ─── Activity Storage (localStorage) ─────────────────────────────────────────
+// Note: Keeping localStorage functions for backward compatibility, but primary tracking
+// now happens via the backend's progress_tracking_history table
+
 const STORAGE_KEY = "cl_activity";
-const COMPLETED_KEY = "cl_completed"; // tracks which contentIds already counted
+const COMPLETED_KEY = "cl_completed";
 
 function loadActivity() {
   try {
@@ -42,23 +45,14 @@ function loadCompleted() {
   }
 }
 
-function recordActivity(dateKey) {
-  const map = loadActivity();
-  map[dateKey] = (map[dateKey] || 0) + 1;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-}
-
+// Track content completion - now primarily handled by backend
+// This function is kept for UI state updates
 export function recordChapterComplete(contentId) {
-  // Deduplicate — only count each contentId once ever
+  // Deduplicate locally — but real tracking happens in backend
   const done = loadCompleted();
   if (done.includes(contentId)) return;
   done.push(contentId);
   localStorage.setItem(COMPLETED_KEY, JSON.stringify(done));
-
-  const today = new Date().toISOString().slice(0, 10);
-  recordActivity(today);
-  // Dispatch so same-tab MyLearning listener fires immediately
-  window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
 }
 
 // ─── Monthly Heatmap ──────────────────────────────────────────────────────────
@@ -344,23 +338,40 @@ export default function MyLearning() {
   const [modal, setModal] = useState(null);
   const navigate = useNavigate();
 
-  // Sync activityMap whenever localStorage changes (from LearningInterface on same tab)
-  // or when user returns to this tab/page
+  // Fetch activity from database instead of localStorage for consistent tracking
   useEffect(() => {
-    const sync = () => setActivityMap(loadActivity());
+    const fetchActivity = async () => {
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+        const res = await apiClient.get("/progress/activity/user-activity", {
+          headers: { "x-timezone": tz },
+        });
+        if (res.data.success && res.data.data.activityMap) {
+          setActivityMap(res.data.data.activityMap);
+        }
+      } catch (err) {
+        console.log("[MyLearning] Error fetching activity:", err.message);
+        // Fallback to localStorage if API fails
+        setActivityMap(loadActivity());
+      }
+    };
 
-    // Fires when localStorage is changed from ANOTHER tab
-    window.addEventListener("storage", sync);
-    // Fires when user navigates back to this page (from LearningInterface)
-    document.addEventListener("visibilitychange", sync);
-    // Also poll every 3s while page is visible (same-tab updates)
+    // Fetch immediately
+    fetchActivity();
+
+    // Refetch every 5 seconds while visible
     const interval = setInterval(() => {
-      if (!document.hidden) sync();
-    }, 3000);
+      if (!document.hidden) fetchActivity();
+    }, 5000);
+
+    // Also refetch when page becomes visible
+    const handleVisibility = () => {
+      if (!document.hidden) fetchActivity();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
-      window.removeEventListener("storage", sync);
-      document.removeEventListener("visibilitychange", sync);
+      document.removeEventListener("visibilitychange", handleVisibility);
       clearInterval(interval);
     };
   }, []);

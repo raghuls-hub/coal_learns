@@ -225,7 +225,6 @@ export default function MyCourses() {
                 <div style={S.statsRow}>
                   {[
                     [course.stats?.enrollmentCount || 0, "Students"],
-                    [course.modules?.length || 0, "Modules"],
                     [
                       `₹${((course.pricing?.amount || 0) * (course.stats?.enrollmentCount || 0)).toFixed(0)}`,
                       "Revenue",

@@ -1,4 +1,4 @@
-const { pool } = require('../config/database');
+const { pool } = require("../config/database");
 
 const formatProgress = (progressRow, completedContent, moduleStatus) => ({
   _id: progressRow.id,
@@ -6,9 +6,17 @@ const formatProgress = (progressRow, completedContent, moduleStatus) => ({
   enrollment: progressRow.enrollment_id,
   user: progressRow.user_id,
   course: progressRow.course_id,
-  completedContent: completedContent.map((r) => ({ _id: r.content_id, id: r.content_id })),
+  completedContent: completedContent.map((r) => ({
+    _id: r.content_id,
+    id: r.content_id,
+  })),
   moduleProgress: moduleStatus.map((r) => ({
-    module: { _id: r.module_id, id: r.module_id, title: r.title, order: r.order },
+    module: {
+      _id: r.module_id,
+      id: r.module_id,
+      title: r.title,
+      order: r.order,
+    },
     isUnlocked: r.is_unlocked,
     isCompleted: r.is_completed,
   })),
@@ -20,56 +28,62 @@ const formatProgress = (progressRow, completedContent, moduleStatus) => ({
 
 const loadProgress = async (progressId) => {
   const [progRes, ccRes, msRes] = await Promise.all([
-    pool.query('SELECT * FROM progress WHERE id = $1', [progressId]),
-    pool.query('SELECT content_id FROM progress_completed_content WHERE progress_id = $1', [progressId]),
+    pool.query("SELECT * FROM progress WHERE id = $1", [progressId]),
+    pool.query(
+      "SELECT content_id FROM progress_completed_content WHERE progress_id = $1",
+      [progressId],
+    ),
     pool.query(
       `SELECT pms.*, m.title, m."order"
        FROM progress_module_status pms
        JOIN modules m ON m.id = pms.module_id
        WHERE pms.progress_id = $1
        ORDER BY m."order" ASC`,
-      [progressId]
+      [progressId],
     ),
   ]);
   return formatProgress(progRes.rows[0], ccRes.rows, msRes.rows);
 };
 
 exports.initializeProgress = async (enrollmentId, userId, courseId) => {
-  const existing = await pool.query('SELECT id FROM progress WHERE enrollment_id = $1', [enrollmentId]);
+  const existing = await pool.query(
+    "SELECT id FROM progress WHERE enrollment_id = $1",
+    [enrollmentId],
+  );
   if (existing.rows.length) return loadProgress(existing.rows[0].id);
 
   const { rows: modules } = await pool.query(
     `SELECT id FROM modules WHERE course_id = $1 ORDER BY "order" ASC`,
-    [courseId]
+    [courseId],
   );
 
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
     const { rows: prog } = await client.query(
       `INSERT INTO progress (enrollment_id, user_id, course_id)
        VALUES ($1,$2,$3)
        ON CONFLICT (enrollment_id) DO UPDATE SET enrollment_id = EXCLUDED.enrollment_id
        RETURNING *`,
-      [enrollmentId, userId, courseId]
+      [enrollmentId, userId, courseId],
     );
 
     if (modules.length) {
       const values = modules
         .map((m, idx) => `('${prog[0].id}','${m.id}',${idx === 0})`)
-        .join(',');
+        .join(",");
       await client.query(
         `INSERT INTO progress_module_status (progress_id, module_id, is_unlocked)
          VALUES ${values}
-         ON CONFLICT DO NOTHING`
+         ON CONFLICT DO NOTHING`,
       );
     }
 
-    await client.query('COMMIT');
+    await client.query("COMMIT");
     return loadProgress(prog[0].id);
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw err;
   } finally {
     client.release();
@@ -78,15 +92,15 @@ exports.initializeProgress = async (enrollmentId, userId, courseId) => {
 
 exports.getProgress = async (enrollmentId, userId) => {
   const { rows } = await pool.query(
-    'SELECT * FROM progress WHERE enrollment_id = $1',
-    [enrollmentId]
+    "SELECT * FROM progress WHERE enrollment_id = $1",
+    [enrollmentId],
   );
 
   if (!rows.length) {
     // Auto-fix: initialize if enrollment belongs to user
     const { rows: enr } = await pool.query(
-      'SELECT * FROM enrollments WHERE id = $1 AND user_id = $2',
-      [enrollmentId, userId]
+      "SELECT * FROM enrollments WHERE id = $1 AND user_id = $2",
+      [enrollmentId, userId],
     );
     if (enr.length) {
       return exports.initializeProgress(enrollmentId, userId, enr[0].course_id);
@@ -99,10 +113,10 @@ exports.getProgress = async (enrollmentId, userId) => {
 
 exports.markContentCompleted = async (enrollmentId, userId, contentId) => {
   const { rows: prog } = await pool.query(
-    'SELECT * FROM progress WHERE enrollment_id = $1 AND user_id = $2',
-    [enrollmentId, userId]
+    "SELECT * FROM progress WHERE enrollment_id = $1 AND user_id = $2",
+    [enrollmentId, userId],
   );
-  if (!prog.length) throw new Error('Progress not found');
+  if (!prog.length) throw new Error("Progress not found");
 
   const progressId = prog[0].id;
 
@@ -110,12 +124,30 @@ exports.markContentCompleted = async (enrollmentId, userId, contentId) => {
   await pool.query(
     `INSERT INTO progress_completed_content (progress_id, content_id)
      VALUES ($1,$2) ON CONFLICT DO NOTHING`,
-    [progressId, contentId]
+    [progressId, contentId],
   );
 
+  // Get module and course info for tracking
+  const { rows: contentRows } = await pool.query(
+    "SELECT module_id FROM content WHERE id = $1",
+    [contentId],
+  );
+
+  if (contentRows.length) {
+    const moduleId = contentRows[0].module_id;
+    // Track in history table
+    await exports.trackProgress(
+      enrollmentId,
+      userId,
+      prog[0].course_id,
+      contentId,
+      moduleId,
+    );
+  }
+
   await pool.query(
-    'UPDATE progress SET last_accessed = NOW(), updated_at = NOW() WHERE id = $1',
-    [progressId]
+    "UPDATE progress SET last_accessed = NOW(), updated_at = NOW() WHERE id = $1",
+    [progressId],
   );
 
   await exports.checkModuleCompletion(prog[0]);
@@ -142,21 +174,22 @@ exports.checkModuleCompletion = async (progressRow) => {
      WHERE m.course_id = $2
      GROUP BY m.id, m."order", pms.is_completed
      ORDER BY m."order" ASC`,
-    [progressId, progressRow.course_id]
+    [progressId, progressRow.course_id],
   );
 
   let hasChanges = false;
 
   for (let i = 0; i < moduleChecks.length; i++) {
     const mc = moduleChecks[i];
-    const allDone = parseInt(mc.total_content) > 0 &&
-                    parseInt(mc.completed_content) === parseInt(mc.total_content);
+    const allDone =
+      parseInt(mc.total_content) > 0 &&
+      parseInt(mc.completed_content) === parseInt(mc.total_content);
 
     if (allDone && !mc.is_completed) {
       await pool.query(
         `UPDATE progress_module_status SET is_completed = TRUE
          WHERE progress_id = $1 AND module_id = $2`,
-        [progressId, mc.module_id]
+        [progressId, mc.module_id],
       );
       hasChanges = true;
 
@@ -165,7 +198,7 @@ exports.checkModuleCompletion = async (progressRow) => {
         await pool.query(
           `UPDATE progress_module_status SET is_unlocked = TRUE
            WHERE progress_id = $1 AND module_id = $2`,
-          [progressId, moduleChecks[i + 1].module_id]
+          [progressId, moduleChecks[i + 1].module_id],
         );
       }
     }
@@ -188,7 +221,7 @@ exports.checkCourseCompletion = async (progressRow) => {
      LEFT JOIN progress_module_status pms
        ON pms.module_id = m.id AND pms.progress_id = $1
      WHERE m.course_id = $2`,
-    [progressId, progressRow.course_id]
+    [progressId, progressRow.course_id],
   );
 
   const total = parseInt(rows[0].total);
@@ -196,8 +229,8 @@ exports.checkCourseCompletion = async (progressRow) => {
 
   if (total > 0 && completed === total && !progressRow.course_completed) {
     await pool.query(
-      'UPDATE progress SET course_completed = TRUE, updated_at = NOW() WHERE id = $1',
-      [progressId]
+      "UPDATE progress SET course_completed = TRUE, updated_at = NOW() WHERE id = $1",
+      [progressId],
     );
 
     // Get instructor name
@@ -205,12 +238,12 @@ exports.checkCourseCompletion = async (progressRow) => {
       `SELECT c.*, u.first_name, u.last_name
        FROM courses c LEFT JOIN users u ON u.id = c.course_handler_id
        WHERE c.id = $1`,
-      [progressRow.course_id]
+      [progressRow.course_id],
     );
     const course = courseRows[0];
     const instructorName = course?.first_name
       ? `${course.first_name} ${course.last_name}`
-      : 'Unknown Instructor';
+      : "Unknown Instructor";
 
     await pool.query(
       `UPDATE enrollments SET
@@ -222,10 +255,14 @@ exports.checkCourseCompletion = async (progressRow) => {
          updated_at = NOW()
        WHERE id = $7`,
       [
-        course.title, course.description, course.thumbnail,
-        course.category, course.level, instructorName,
+        course.title,
+        course.description,
+        course.thumbnail,
+        course.category,
+        course.level,
+        instructorName,
         progressRow.enrollment_id,
-      ]
+      ],
     );
   } else {
     await exports.updateEnrollmentProgress(progressRow);
@@ -243,7 +280,7 @@ exports.updateEnrollmentProgress = async (progressRow) => {
        LEFT JOIN progress_completed_content pcc
          ON pcc.content_id = c.id AND pcc.progress_id = $1
        WHERE m.course_id = $2`,
-      [progressRow.id, progressRow.course_id]
+      [progressRow.id, progressRow.course_id],
     );
 
     const total = parseInt(rows[0].total);
@@ -252,10 +289,89 @@ exports.updateEnrollmentProgress = async (progressRow) => {
     const pct = Math.round((parseInt(rows[0].completed) / total) * 100);
 
     await pool.query(
-      'UPDATE enrollments SET progress = $1, updated_at = NOW() WHERE id = $2',
-      [pct, progressRow.enrollment_id]
+      "UPDATE enrollments SET progress = $1, updated_at = NOW() WHERE id = $2",
+      [pct, progressRow.enrollment_id],
     );
   } catch (err) {
-    console.error('[updateEnrollmentProgress] Error:', err.message);
+    console.error("[updateEnrollmentProgress] Error:", err.message);
   }
+};
+
+// Track content completion in permanent history table
+exports.trackProgress = async (
+  enrollmentId,
+  userId,
+  courseId,
+  contentId,
+  moduleId,
+) => {
+  const { rows: prog } = await pool.query(
+    "SELECT id FROM progress WHERE enrollment_id = $1",
+    [enrollmentId],
+  );
+
+  if (!prog.length) throw new Error("Progress not found");
+
+  const progressId = prog[0].id;
+
+  // Insert into tracking history (idempotent)
+  await pool.query(
+    `INSERT INTO progress_tracking_history (progress_id, user_id, course_id, content_id, module_id, event_type, completed_at)
+     VALUES ($1, $2, $3, $4, $5, 'content_completed', NOW())
+     ON CONFLICT DO NOTHING`,
+    [progressId, userId, courseId, contentId, moduleId],
+  );
+};
+
+// Get progress history by date range for activity heatmap
+exports.getProgressHistory = async (userId, courseId, tz = "UTC") => {
+  const { rows } = await pool.query(
+    `SELECT
+       TO_CHAR((completed_at AT TIME ZONE $3), 'YYYY-MM-DD') AS completion_date,
+       COUNT(*) AS count,
+       JSON_AGG(DISTINCT module_id) AS modules
+     FROM progress_tracking_history
+     WHERE user_id = $1 AND course_id = $2
+     GROUP BY TO_CHAR((completed_at AT TIME ZONE $3), 'YYYY-MM-DD')
+     ORDER BY completion_date DESC`,
+    [userId, courseId, tz],
+  );
+
+  // Convert to activity map for heatmap (YYYY-MM-DD -> count)
+  const activityMap = {};
+  rows.forEach((row) => {
+    const key = row.completion_date; // already 'YYYY-MM-DD' string in requested tz
+    activityMap[key] = parseInt(row.count);
+  });
+
+  return activityMap;
+};
+
+// Get all user's progress tracking activities for the last 6 months
+exports.getUserProgressActivity = async (userId, tz = "UTC") => {
+  const { rows } = await pool.query(
+    `SELECT
+       TO_CHAR((completed_at AT TIME ZONE $2), 'YYYY-MM-DD') AS completion_date,
+       COUNT(*) AS count,
+       COUNT(DISTINCT course_id) AS courses,
+       COUNT(DISTINCT module_id) AS modules
+     FROM progress_tracking_history
+     WHERE user_id = $1 
+       AND completed_at >= NOW() - INTERVAL '6 months'
+     GROUP BY TO_CHAR((completed_at AT TIME ZONE $2), 'YYYY-MM-DD')
+     ORDER BY completion_date DESC`,
+    [userId, tz],
+  );
+
+  // Convert to activity map
+  const activityMap = {};
+  rows.forEach((row) => {
+    const key = row.completion_date; // already 'YYYY-MM-DD' string in requested tz
+    activityMap[key] = parseInt(row.count);
+  });
+
+  return {
+    activityMap,
+    totalEvents: rows.reduce((sum, r) => sum + parseInt(r.count), 0),
+  };
 };

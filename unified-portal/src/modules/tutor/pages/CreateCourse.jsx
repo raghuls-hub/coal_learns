@@ -104,8 +104,8 @@ export default function CreateCourse() {
       });
       const url = res.data.data?.url || "";
       const resolved = resolveCover(url);
-      set("coverImage", resolved);
-      setCoverPreview(resolved);
+      set("coverImage", url); // Store relative path, not resolved URL
+      setCoverPreview(resolved); // Preview uses resolved URL
     } catch {
       alert("Cover upload failed");
     } finally {
