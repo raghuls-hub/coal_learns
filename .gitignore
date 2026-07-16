@@ -62,3 +62,5 @@ build/
 .cache/
 tmp/
 temp/
+
+CODEBASE_ANALYSIS_REPORT.md
