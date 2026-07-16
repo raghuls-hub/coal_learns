@@ -1,413 +1,206 @@
-# LMS 2.0 — Learning Management System
+# Coal Learns — Learning Management System
 
-A modern, scalable Learning Management System built with **React**, **Express.js**, and **PostgreSQL**.
+**Coal Learns** is a modern, decoupled, and highly scalable Learning Management System (LMS) designed for performance, security, and exceptional user experiences. Built with a **React 19** frontend and an **Express.js / PostgreSQL** backend, it provides dedicated portals for both candidates and mentors.
 
-## 🎯 Features
+---
 
-- **Student Portal**: Browse courses, enroll, learn, and earn certificates
-- **Tutor Portal**: Create and manage courses with modules and content
-- **AI Assistant**: Integrated AI-powered learning assistance
-- **Certificate Generation**: Digital certificates with QR codes
-- **Progress Tracking**: Real-time course progress monitoring
-- **Role-Based Access Control**: Admin, Mentor, and Candidate roles
-- **Responsive Design**: Works on desktop, tablet, and mobile
+## 🎯 Key Features
+
+* **Dual Portals**: Custom environments for Candidates (students) and Tutors (mentors).
+
+
+* **Progress Tracking**: Real-time course completion monitoring.
+
+
+* **Certificate Generation**: Automatic PDF generation with secure, verifiable QR codes.
+
+
+* **AI Learning Assistant**: Instant, context-aware student support powered by Gemini AI.
+
+
 
 ---
 
 ## 📁 Project Structure
 
 ```
-LMS.2.0/
-├── backend-pg/                    # Express.js API
+Coal-Learns/
+├── backend-pg/                    # Express.js REST API[cite: 1]
 │   ├── src/
-│   │   ├── config/               # Database, JWT, initialization
-│   │   ├── controllers/          # Business logic
-│   │   ├── routes/              # API endpoints
-│   │   ├── middleware/          # Auth, validation, error handling
-│   │   ├── services/            # Database operations
-│   │   ├── utils/               # Helper functions
-│   │   ├── app.js              # Express app setup
-│   │   └── server.js           # Server entry point
-│   ├── package.json
-│   ├── .env.example
-│   └── render.yaml             # Render deployment config
+│   │   ├── config/               # Database pool, schemas & init scripts[cite: 1, 2]
+│   │   ├── controllers/          # Business routing and input validation[cite: 1, 2]
+│   │   ├── middleware/          # JWT, RBAC, Rate Limiting, and Error handlers[cite: 2]
+│   │   ├── services/            # Pure database transaction queries[cite: 2]
+│   │   └── server.js           # Express app entry point[cite: 1, 2]
 │
-├── unified-portal/               # React + Vite frontend
-│   ├── src/
-│   │   ├── modules/            # Candidate & Tutor modules
-│   │   ├── shared/             # Shared API and components
-│   │   ├── pages/              # Landing page, etc.
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── .env.example
-│   └── vercel.json             # Vercel deployment config
-│
-└── DEPLOYMENT_GUIDE.md         # Complete deployment instructions
+└── unified-portal/               # React 19 + Vite Frontend SPA[cite: 1, 2]
+    ├── src/
+    │   ├── modules/            # Candidate & Tutor portal modules[cite: 2]
+    │   ├── shared/             # Unified Axios client & global components[cite: 2]
+    │   └── App.jsx             # React Router config[cite: 1, 2]
+
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🛠️ Tech Stack Details
 
-### Prerequisites
+| Layer | Technologies Used | Key Technical Features |
+| --- | --- | --- |
+| **Frontend** | React 19, Vite, Context API, Axios
 
-- Node.js 16+ and npm/yarn
-- PostgreSQL 12+ (or Supabase account for cloud database)
-- Git
+ | Concurrent rendering, localized session hooks, dynamic token-injection interceptors.
 
-### Local Development
+ |
+| **Backend** | Node.js, Express.js, Helmet, Joi
 
-#### 1. Clone Repository
+ | Rate-limiting, validation schemas, global dynamic CORS, structured MVC workflow.
 
-```bash
-git clone https://github.com/your-repo/LMS.2.0.git
-cd LMS.2.0
-```
+ |
+| **Database** | PostgreSQL 12+, Connection Pool (`pg`)
 
-#### 2. Backend Setup
+ | Transaction blocks, GIN full-text search, composite index performance optimization.
+
+ |
+
+---
+
+## 📊 Core Features Legend
+
+Below is a quick-reference legend mapping our application's core capabilities to their primary access roles and underlying database tables:
+
+| Icon | Core Feature | Authorized Roles | Affected Database Tables |
+| --- | --- | --- | --- |
+| 🔐 | **Authentication & RBAC** | Public, Candidate, Mentor, Admin | `users`<br> |
+| 📚 | **Course & Module Builder** | Mentors, Admins | `courses`, `modules`, `content`, `course_tutors`<br> |
+| 📁 | **Asset Storage** | Mentors, Admins | `uploaded_files`<br> |
+| 📈 | **Enrollments & Progress** | Candidates | `enrollments`, `progress`<br> |
+| 🏅 | **Certificates & Verifier** | Candidates, Public Verifiers | `certificates`, `users`, `courses`<br> |
+| 🤖 | **AI Assistant** | Candidates | `content`, `courses`<br> |
+
+---
+
+## ⚙️ Core Feature Workflows & Technical Deep Dives
+
+### 1. Secure Authentication & RBAC 🔐
+
+* **Flow**: Register/Login Form ➔ Server-Side Joi Validation ➔ `bcryptjs` Hashing (12 rounds) ➔ PostgreSQL Save ➔ Signed JWT issued (scoped by role).
+
+
+* **Technical Details**: Frontend stores tokens in `localStorage` (`CANDIDATE_AUTH_TOKEN` or `TUTOR_AUTH_TOKEN`). Custom `rbac.js` and `auth.js` middlewares enforce route-level access rules.
+
+
+
+### 2. Course & Module Builder 📚
+
+* **Flow**: Tutor populates details ➔ Save triggers transaction ➔ Rows written to parent and children tables ➔ Toggle publish status.
+
+
+* **Technical Details**: Utilizes transaction blocks to maintain structural integrity across related tables. Optimizations include B-tree indexing on foreign keys and a GIN full-text index for fast title/description searches.
+
+
+
+### 3. Asset Storage 📁
+
+* **Flow**: User drags media ➔ Uploaded to `/api/upload` as `multipart/form-data` ➔ Server validates type/size ➔ File stored and metadata saved to DB.
+
+
+* **Technical Details**: Prevents security issues by verifying file headers and standardizing filenames on save.
+
+
+
+### 4. Enrollments & Progress Engine 📈
+
+* **Flow**: Student enrolls ➔ Progress schema initialized ➔ Student completes lesson ➔ Click "Mark Complete" ➔ UI calls progress API and recalculates completion rate.
+
+
+* **Technical Details**: Enforces a unique composite key constraint on `(user_id, course_id)` in the `enrollments` table to prevent duplicate enrollments.
+
+
+
+### 5. Automated Certificates 🏅
+
+* **Flow**: Progress reaches 100% ➔ Certificate service triggers ➔ Unique certificate verification payload created ➔ Dynamic PDF with QR code generated and saved.
+
+
+* **Technical Details**: Certificates are linked directly to specific student enrollments and verified on a public route without requiring login access.
+
+
+
+### 6. AI Assistant 🤖
+
+* **Flow**: Student submits question ➔ API queries backend ➔ System retrieves course context from DB ➔ Payload secure-sent to Gemini API ➔ Response rendered in chat UI.
+
+
+* **Technical Details**: Enhances chat relevance using prompt injection context, and keeps sensitive `GEMINI_API_KEY` environment variables isolated on the backend.
+
+
+
+---
+
+## 🚀 Getting Started
+
+### Local Development Setup
+
+#### 1. Configure the Backend
 
 ```bash
 cd backend-pg
-
-# Install dependencies
 npm install
-
-# Create .env file from example
 cp .env.example .env
 
-# Update .env with your database credentials
-# PG_URI=postgresql://user:password@localhost:5432/lms_pg
-
-# Initialize database
-npm run db:init
-
-# Start development server
-npm run dev
-# Backend runs on http://localhost:5001
 ```
 
-#### 3. Frontend Setup
+Update your `.env` file with your credentials:
 
-```bash
-cd ../unified-portal
-
-# Install dependencies
-npm install
-
-# Create .env file from example
-cp .env.example .env
-
-# Update .env with API URL
-# VITE_API_URL=http://localhost:5001/api
-
-# Start development server
-npm run dev
-# Frontend runs on http://localhost:3000
-```
-
-#### 4. Access Application
-
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5001/api
-- **Health Check**: http://localhost:5001/api/health
-
----
-
-## 🔐 Environment Variables
-
-### Backend (`.env`)
-
-```bash
-# Server
-NODE_ENV=development
+```env
 PORT=5001
+PG_URI=postgresql://<user>:<password>@localhost:5432/coal_learns_db
+JWT_SECRET=your_secret_key
+GEMINI_API_KEY=your_gemini_key
 
-# Database (PostgreSQL)
-PG_URI=postgresql://user:password@localhost:5432/lms_pg
-
-# JWT Authentication
-JWT_SECRET=your_secret_key_here
-JWT_REFRESH_SECRET=your_refresh_secret_here
-JWT_EXPIRY=15m
-JWT_REFRESH_EXPIRY=7d
-
-# Application
-APP_URL=http://localhost:3000
-
-# Optional
-GEMINI_API_KEY=your_gemini_api_key_here
-BCRYPT_ROUNDS=12
 ```
 
-### Frontend (`.env`)
+Initialize the PostgreSQL tables and start the API:
 
 ```bash
-# API Configuration
-VITE_API_URL=http://localhost:5001/api
-VITE_DEBUG_MODE=true
-```
-
----
-
-## 🗄️ Database Schema
-
-### Key Tables
-
-- **users**: User accounts and profiles
-- **courses**: Course information
-- **modules**: Course modules/sections
-- **content**: Learning content (videos, PDFs, notes)
-- **enrollments**: Student course enrollments
-- **progress**: Student learning progress
-- **certificates**: Generated certificates
-- **uploaded_files**: User-uploaded content (stored in DB)
-
-### Initialize Database
-
-```bash
-# From backend-pg directory
 npm run db:init
+npm run dev
+
 ```
 
-This creates all tables and indexes defined in `src/config/schema.sql`.
-
----
-
-## 📚 API Documentation
-
-### Authentication Endpoints
+#### 2. Configure the Frontend
 
 ```bash
-# Register
-POST /api/auth/register
-{
-  "email": "user@example.com",
-  "password": "SecurePassword123!",
-  "firstName": "John",
-  "lastName": "Doe",
-  "role": "candidate"
-}
-
-# Login
-POST /api/auth/login
-{
-  "email": "user@example.com",
-  "password": "SecurePassword123!"
-}
-
-# Refresh Token
-POST /api/auth/refresh-token
-```
-
-### Courses Endpoints
-
-```bash
-# Get all courses
-GET /api/courses
-
-# Get course details
-GET /api/courses/:courseId
-
-# Create course (tutor only)
-POST /api/courses
-Authorization: Bearer <token>
-
-# Enroll in course
-POST /api/enrollments/:courseId
-Authorization: Bearer <token>
-```
-
-### Progress Endpoints
-
-```bash
-# Get user progress
-GET /api/progress
-Authorization: Bearer <token>
-
-# Update progress
-PUT /api/progress/:contentId
-Authorization: Bearer <token>
-```
-
-### Certificate Endpoints
-
-```bash
-# Get certificates
-GET /api/certificates
-Authorization: Bearer <token>
-
-# Verify certificate
-GET /api/certificates/verify/:certificateId
-```
-
----
-
-## 🛠️ Development
-
-### Run Tests
-
-```bash
-# Backend
-cd backend-pg
-npm test
-
-# Frontend
 cd ../unified-portal
-npm run lint
-```
-
-### Build for Production
-
-```bash
-# Frontend
-cd unified-portal
-npm run build
-
-# Output in: unified-portal/dist/
-```
-
----
-
-## 🚢 Deployment
-
-### Production Deployment
-
-See **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** for complete instructions on deploying to:
-
-- **Frontend**: Vercel
-- **Backend**: Render
-- **Database**: Supabase PostgreSQL
-
-Quick summary:
-
-1. **Database**: Set up Supabase PostgreSQL
-2. **Backend**: Deploy to Render
-3. **Frontend**: Deploy to Vercel
-
-All platforms support automatic deployment from GitHub.
-
----
-
-## 🔒 Security
-
-- **JWT Authentication**: Secure token-based auth
-- **Password Hashing**: bcryptjs with configurable rounds
-- **CORS Protection**: Configured origins and credentials
-- **Rate Limiting**: API rate limiting in production
-- **SQL Injection Prevention**: Parameterized queries
-- **File Upload Security**: Size limits and validation
-- **Helmet.js**: Security headers configuration
-
----
-
-## 📊 Monitoring
-
-### Backend (Render)
-
-- CPU/Memory usage
-- Error logs and monitoring
-- Automatic restart on crash
-- Performance metrics
-
-### Frontend (Vercel)
-
-- Analytics and performance
-- Error tracking
-- Deployment history
-- Auto-preview deployments
-
-### Database (Supabase)
-
-- Query performance metrics
-- Connection pool monitoring
-- Automatic backups
-- Database logs
-
----
-
-## 🐛 Troubleshooting
-
-### "Cannot find module" errors
-
-```bash
-# Clear node_modules and reinstall
-rm -rf node_modules package-lock.json
 npm install
+cp .env.example .env
+
 ```
 
-### Database connection fails
+Ensure your `.env` connects directly to the local backend port:
+
+```env
+VITE_API_URL=http://localhost:5001/api
+
+```
+
+Start the local development server:
 
 ```bash
-# Verify PG_URI format:
-# postgresql://user:password@host:port/database
+npm run dev
 
-# For Supabase:
-# postgresql://postgres:[password]@[host]:[port]/postgres?sslmode=require
-```
-
-### Frontend shows blank page
-
-```bash
-# Check browser console (F12) for errors
-# Verify VITE_API_URL is set correctly
-# Ensure backend is running and accessible
-```
-
-### CORS errors
-
-```bash
-# Update APP_URL in backend environment
-# Format: https://your-frontend-domain.com
-# Restart backend after changing
 ```
 
 ---
 
-## 📝 API Response Format
+## 🚢 Production Deployment
 
-All API endpoints follow this format:
 
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "name": "Example"
-  },
-  "message": "Success message",
-  "timestamp": "2024-05-04T10:30:00.000Z"
-}
-```
+* **Database**: Set up a managed database instance on **Supabase** (with `sslmode=require`).
 
----
 
-## 🤝 Contributing
+* **Backend REST API**: Deploy to **Render** (set environment variables, `NODE_ENV=production`).
 
-1. Create a feature branch: `git checkout -b feature/amazing-feature`
-2. Commit changes: `git commit -m 'Add amazing feature'`
-3. Push to branch: `git push origin feature/amazing-feature`
-4. Open a Pull Request
 
----
-
-## 📄 License
-
-This project is private and proprietary.
-
----
-
-## 👨‍💼 Support
-
-For issues or questions:
-
-- Check [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
-- Review [CODEBASE_ANALYSIS_REPORT.md](./CODEBASE_ANALYSIS_REPORT.md)
-- Open an issue in the repository
-
----
-
-**Version**: 2.0.0  
-**Last Updated**: May 2024  
-**Tech Stack**: React 19 • Node.js • Express • PostgreSQL • Vite
+* **Frontend SPA**: Deploy to **Vercel** pointing towards your production API domain.
